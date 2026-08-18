@@ -243,6 +243,17 @@ hr{border:0;border-top:1px solid var(--line);margin:26px 0}
     </div>
 
     <div class="card">
+      <div class="ref">The address</div>
+      <p>Knowing a verse you can't place is a real failure, and a common one. The
+      words have grammar, rhythm and an argument holding them up. "Romans 8:28" has
+      none of that — it's an arbitrary label, so it <b>fades faster than the verse
+      does</b>.</p>
+      <p>So it's asked in the other direction, on its own clock: you get the opening
+      line, you give the address. Near misses count for something — two verses out
+      scores better than the wrong chapter.</p>
+    </div>
+
+    <div class="card">
       <div class="ref">When you miss</div>
       <p>Hear it. Say it with the text. Say it alone. <b>Then come back to it
       before the session ends.</b> That last step is the one everybody skips and
@@ -556,6 +567,58 @@ const dueIn = v => Math.round((v.due-Date.now())/DAY);
 // for two years as brand new material.
 const isAcquisition = v => (v.peakS||0) < 30;
 
+/* ---- Reference recall: a separate schedule, deliberately.
+   "Romans 8:28" is an arbitrary paired associate — no grammar, no rhythm, no
+   argument holding it together — so it decays faster than the text it points
+   at. Riding on the text's schedule would ask for it exactly when it doesn't
+   need asking. It gets its own stability. ---- */
+function ensureRef(v){
+  if(v.rDue===undefined){
+    v.rS=0; v.rD=0; v.rPeak=0; v.rLast=0; v.rReps=0; v.rLapses=0;
+    v.rDue = v.reps>0 ? Date.now() : Date.now()+2*DAY;
+  }
+  return v;
+}
+const BOOKNUM={i:1,ii:2,iii:3,"1":1,"2":2,"3":3};
+function parseRef(s){
+  const t=String(s||"").trim().toLowerCase().replace(/\./g," ").replace(/\s+/g," ");
+  const m=t.match(/^(?:(i{1,3}|[1-3])\s*)?([a-z]+)\s*(\d+)\s*[:\s]\s*(\d+)/);
+  if(!m) return null;
+  return { num: m[1]?(BOOKNUM[m[1]]||0):0, book:m[2], ch:+m[3], vs:+m[4] };
+}
+function judgeRef(expected, attempt){
+  const E=parseRef(expected), G=parseRef(attempt);
+  if(!String(attempt||"").trim()) return {g:1,why:`Blank. It's ${expected}.`};
+  if(!G) return {g:1,why:`Couldn't read that as a reference. It's ${expected}.`};
+  if(!E) return {g:3,why:""};
+  // accept any unambiguous abbreviation: "Rom", "Roma", "Romans" all match, but
+  // "Philemon" and "Philippians" diverge at the fifth letter and stay distinct
+  const sameBook = E.num===G.num && Math.min(E.book.length,G.book.length)>=3
+    && (E.book.startsWith(G.book) || G.book.startsWith(E.book));
+  if(!sameBook) return {g:1,why:`Wrong book — it's ${expected}.`};
+  if(E.ch!==G.ch) return {g:1,why:`Right book, wrong chapter. It's ${expected}.`};
+  if(E.vs!==G.vs) return Math.abs(E.vs-G.vs)<=2
+    ? {g:2,why:`Within two verses. It's ${expected}.`}
+    : {g:1,why:`Right chapter, wrong verse. It's ${expected}.`};
+  return {g:3,why:""};
+}
+function applyRefGrade(v,g){
+  ensureRef(v);
+  const now=Date.now(), el=v.rLast?Math.max(0,(now-v.rLast)/DAY):0;
+  if(v.rReps===0){ v.rS=Fsrs.initS(g); v.rD=Fsrs.initD(g); }
+  else{
+    if(!(v.rD>=1&&v.rD<=10)) v.rD=Fsrs.initD(3);
+    if(!(v.rS>0)) v.rS=Fsrs.initS(3);
+    const R=Fsrs.R(el,v.rS);
+    if(g===1){ v.rS=Fsrs.sForget(v.rD,v.rS,R); v.rLapses++; }
+    else v.rS=Fsrs.sRecall(v.rD,v.rS,R,g);
+    v.rD=Fsrs.nextD(v.rD,g);
+  }
+  v.rS=clamp(v.rS,0.1,36500); v.rPeak=Math.max(v.rPeak||0,v.rS);
+  v.rReps++; v.rLast=now;
+  v.rDue = now + Math.max(1,Math.round(Fsrs.interval(v.rS, rd(v))))*DAY;
+}
+
 function applyGrade(v, g, info){
   const now=Date.now();
   const elapsed = v.last? Math.max(0,(now-v.last)/DAY) : 0;
@@ -616,7 +679,13 @@ function buildSession(){
   const recent = dueV.filter(v=>v.S<30), vault=dueV.filter(v=>v.S>=30);
   const shuffle=a=>a.map(x=>[Math.random(),x]).sort((p,q)=>p[0]-q[0]).map(p=>p[1]);
   const queue=[...fresh, ...shuffle(recent), ...shuffle(vault)].slice(0, room+fresh.length);
-  session={ queue, done:0, total:queue.length, retest:[], corrected:0, blocked:backlog>S.settings.dailyCap && newAllow===0 };
+  // reference checks: only for verses you've actually drilled, and capped —
+  // each takes about five seconds, so a dozen costs a minute
+  const refs = S.verses.filter(v=>{ ensureRef(v); return v.reps>0 && v.rDue<=now; })
+                       .sort((a,b)=>a.rDue-b.rDue).slice(0,12);
+  session={ queue, done:0, total:queue.length, retest:[], corrected:0, refs,
+            refDone:0, refTotal:refs.length,
+            blocked:backlog>S.settings.dailyCap && newAllow===0 };
   return session;
 }
 function nextItem(){
@@ -716,6 +785,7 @@ function today(){
   if(!session) buildSession();
   updateDots();
 
+  if(!session.total && session.refs.length) return drawRefCard();
   if(!session.total){
     const next=S.verses.filter(v=>v.reps>0).sort((a,b)=>a.due-b.due)[0];
     const oral=Math.floor((Date.now()-(S.settings.lastOral||0))/DAY);
@@ -729,10 +799,13 @@ function today(){
       <div class="row"><button class="btn ghost" onclick="go('lib')">Browse verses</button></div>`;
     return;
   }
+  if(session.done>=session.total && !session.retest.length && session.refs.length){
+    return drawRefCard();
+  }
   if(session.done>=session.total && !session.retest.length){
     el.innerHTML=`
       <h2>Done for today</h2>
-      <p class="sub">${session.total} reviewed${session.corrected?`, ${session.corrected} corrected and re-tested`:""}.</p>
+      <p class="sub">${session.total} reviewed${session.corrected?`, ${session.corrected} corrected and re-tested`:""}${session.refTotal?`, ${session.refTotal} reference${session.refTotal===1?"":"s"} checked`:""}.</p>
       ${session.blocked?`<div class="note"><b>New verses are on hold.</b> Your backlog is
         above the daily cap. Clear it and intake reopens — this is deliberate.</div>`:""}
       <div class="row"><button class="btn ghost" onclick="go('stats')">See where you stand</button></div>`;
@@ -931,6 +1004,68 @@ function advance(){
 }
 
 /* ============================================================
+   REFERENCE DRILL — text in, address out
+   ============================================================ */
+let refCur=null, refPhase="ask", refJudge=null;
+
+function drawRefCard(){
+  const el=$("#today-body");
+  if(!session.refs.length){
+    session.refs=[]; session.done=session.total;
+    refCur=null; return today();
+  }
+  const v = refCur || (refCur=session.refs[0]);
+  const pct=Math.round(100*session.refDone/Math.max(1,session.refTotal));
+  const head=`<p class="eyebrow">References · ${session.refDone+1} of ${session.refTotal}</p>
+    <div class="bar"><i style="width:${pct}%"></i></div>`;
+
+  if(refPhase==="ask"){
+    // show the opening line only — enough to identify, not enough to re-read
+    el.innerHTML=head+`
+      <div class="card">
+        <div class="ref" style="color:var(--mute)">where is this?</div>
+        <div class="script">${v.chunks.slice(0,2).map(c=>`<span class="ln">${esc(c)}</span>`).join("")}${v.chunks.length>2?`<span class="ln cue">…</span>`:""}</div>
+        <label>Book, chapter, verse</label>
+        <input type="text" id="ratt" placeholder="Romans 8:28" autocapitalize="words" autocomplete="off">
+        <div class="row"><button class="btn" id="rcheck">Check it</button></div>
+        ${!S.seen.refdrill&&S.settings.teaching?`<div class="note teach"><b>The other direction.</b>
+          Everything else here cues you with the reference and asks for the words. This asks
+          the reverse, on its own schedule — a reference is an arbitrary label with no grammar
+          or rhythm holding it up, so it fades faster than the verse does. Knowing a verse you
+          can't place is a real and common failure.</div>`:""}
+      </div>`;
+    if(S.settings.teaching) S.seen.refdrill=1;
+    const inp=$("#ratt");
+    $("#rcheck").onclick=()=>submitRef(inp.value);
+    inp.addEventListener("keydown",e=>{ if(e.key==="Enter") submitRef(inp.value); });
+    inp.focus();
+    return;
+  }
+
+  const j=refJudge, pass=j.g>=3;
+  el.innerHTML=head+`
+    <div class="card ${pass?"":"fresh"}">
+      <div class="ref">${esc(v.ref)}</div>
+      <p class="verdict ${pass?"pass":j.g===2?"slip":"fail"}">${pass?"Placed it.":j.g===2?"Nearly.":"Not there."}</p>
+      ${j.why?`<div class="note">${esc(j.why)}</div>`:""}
+      <div class="script">${v.chunks.map(c=>`<span class="ln">${esc(c)}</span>`).join("")}</div>
+      <div class="row"><button class="btn" id="rnext">Next</button></div>
+    </div>`;
+  $("#rnext").onclick=()=>{
+    applyRefGrade(v, refJudge.g);
+    session.refs.shift(); session.refDone++;
+    refCur=null; refPhase="ask"; refJudge=null;
+    save(); drawRefCard();
+  };
+}
+
+function submitRef(text){
+  refJudge = judgeRef(refCur.ref, text);
+  refPhase="show";
+  drawRefCard();
+}
+
+/* ============================================================
    LISTENER MODE — hand the phone to a person
    ============================================================ */
 let listenV=null, missed=new Set();
@@ -1106,9 +1241,10 @@ function detail(id){
       <div class="script">${renderScript(v)}</div>
       ${v.intention?`<div class="note"><b>What's happening:</b> ${esc(v.intention)}</div>`:""}
       <div class="note">
-        Stability <b>${v.S.toFixed(1)}d</b> · difficulty <b>${v.D.toFixed(1)}</b> ·
+        Text: stability <b>${v.S.toFixed(1)}d</b> · difficulty <b>${v.D.toFixed(1)}</b> ·
         reviewed <b>${v.reps}×</b> · lapses <b>${v.lapses}</b><br>
         Due in <b>${Math.max(0,dueIn(v))}d</b> at ${Math.round(rd(v)*100)}% target<br>
+        Reference: ${v.rReps?`stability <b>${v.rS.toFixed(1)}d</b> · asked <b>${v.rReps}×</b> · due in <b>${Math.max(0,Math.round((v.rDue-Date.now())/DAY))}d</b>`:"<b>not asked yet</b>"}<br>
         <span style="color:var(--dim)">${modes}</span>
       </div>
       <div class="row">
@@ -1173,6 +1309,17 @@ function statsView(){
         : `<b>Well calibrated.</b> You know what you know, which is rarer than it sounds —
            most people overshoot by twenty points.`}</div>`}
 
+    <h2>References</h2>
+    ${(()=>{ const drilled=S.verses.filter(v=>v.rReps>0);
+      if(!drilled.length) return `<p class="sub">No references asked yet — they start a couple of days after a verse goes in.</p>`;
+      const weak=drilled.filter(v=>v.rS < v.S*0.6);
+      return `<div class="grid">
+        <div class="stat"><div class="n">${drilled.length}</div><div class="l">references drilled</div></div>
+        <div class="stat"><div class="n">${weak.length}</div><div class="l">lagging the text</div></div>
+      </div>
+      ${weak.length?`<div class="note">${weak.length} verse${weak.length===1?" you can recite but struggle to place":"s you can recite but struggle to place"} — ${weak.slice(0,4).map(v=>esc(v.ref)).join(", ")}${weak.length>4?"…":""}. Normal: the words have grammar and rhythm holding them up, the address has nothing.</div>`:`<div class="note">References are keeping pace with the text.</div>`}`;
+    })()}
+
     <h2>Oral recitation</h2>
     <p class="sub">${oral===null?"You haven't recited to a person yet."
       :oral===0?"Today. Good.":`${oral} day${oral===1?"":"s"} ago.`}</p>
@@ -1214,7 +1361,7 @@ function settingsView(){
     Turn them off entirely if you already know this material — scaffolding that helps a
     beginner makes an expert worse.</p>
     <hr>
-    <p class="sub">Build <b>1.2</b> · storage <b>${Store.mode()}</b>. Export a backup from the Verses tab
+    <p class="sub">Build <b>1.3</b> · storage <b>${Store.mode()}</b>. Export a backup from the Verses tab
     regularly — this is the only copy.</p>`;
   $("#settings-body").querySelectorAll("[data-r]").forEach(b=>b.onclick=async()=>{
     S.settings.retention=parseFloat(b.dataset.r); session=null; await save(); settingsView(); });
@@ -1233,7 +1380,7 @@ function go(v){
   $("#v-"+v).classList.add("on");
   document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
   window.scrollTo(0,0);
-  if(v==="today"){ session=null; today(); }
+  if(v==="today"){ session=null; refCur=null; refPhase="ask"; refJudge=null; today(); }
   if(v==="add") addView();
   if(v==="lib") libView();
   if(v==="stats") statsView();
@@ -1247,6 +1394,7 @@ document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>go(b.dataset.v)
   const saved=await Store.get("state");
   applyTextSize();
   if(saved){ S=Object.assign(S,saved); S.settings=Object.assign({retention:0.90,dailyCap:20,newCap:2,teaching:true,lastOral:0,textSize:1},saved.settings||{}); }
+  S.verses.forEach(ensureRef);
   applyTextSize();
   today();
   if("serviceWorker" in navigator){

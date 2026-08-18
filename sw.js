@@ -1,5 +1,5 @@
 /* Rubric — offline shell. Bump CACHE to force an update. */
-const CACHE = "rubric-v3";
+const CACHE = "rubric-v4";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {
