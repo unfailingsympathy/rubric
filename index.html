@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Rubric — scripture memory</title>
+<meta name="theme-color" content="#171A21">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ground:#171A21; --raise:#1F2430; --raise2:#282F3D;
+  --ink:#E8E3D9; --mute:#868C9A; --dim:#5C6373;
+  --rubric:#C8452F; --rubric-dim:#7A2C1F;
+  --gilt:#C9A227; --line:#2C3341;
+  --t:1;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --serif:'EB Garamond',Georgia,serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--ground); color:var(--ink); font-family:var(--sans);
+  font-size:calc(16px*var(--t)); line-height:1.5; min-height:100vh;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.wrap{max-width:660px;margin:0 auto;padding:0 20px 120px}
+
+/* ---- running head ---- */
+header{
+  position:sticky;top:0;z-index:40;background:rgba(23,26,33,.94);
+  backdrop-filter:blur(12px);border-bottom:1px solid var(--line);
+  padding-top:env(safe-area-inset-top);
+}
+.head{max-width:660px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:12px}
+.mark{font-family:var(--serif);font-size:calc(19px*var(--t));letter-spacing:.14em;text-transform:uppercase;font-weight:500}
+.mark b{color:var(--rubric);font-weight:500}
+.dots{margin-left:auto;display:flex;gap:5px;align-items:center}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--line);transition:background .3s}
+.dot.new{background:var(--rubric)} .dot.recent{background:var(--ink)} .dot.vault{background:var(--gilt)}
+.dot.done{opacity:.22}
+
+/* ---- nav ---- */
+nav{
+  position:fixed;bottom:0;left:0;right:0;z-index:40;
+  background:rgba(23,26,33,.96);backdrop-filter:blur(12px);
+  border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);
+}
+.navin{max-width:660px;margin:0 auto;display:flex}
+nav button{
+  flex:1;background:none;border:0;color:var(--dim);font-family:var(--sans);
+  font-size:calc(11px*min(var(--t),1.15));letter-spacing:.09em;text-transform:uppercase;padding:13px 4px;cursor:pointer;
+  border-top:2px solid transparent;margin-top:-1px;transition:color .2s
+}
+nav button.on{color:var(--ink);border-top-color:var(--rubric)}
+nav button:focus-visible{outline:2px solid var(--rubric);outline-offset:-2px}
+
+/* ---- type ---- */
+h2{font-family:var(--serif);font-weight:500;font-size:calc(26px*var(--t));margin:26px 0 4px;letter-spacing:.01em}
+.eyebrow{font-size:calc(11px*var(--t));letter-spacing:.16em;text-transform:uppercase;color:var(--mute);margin:0 0 14px}
+.sub{color:var(--mute);font-size:calc(14px*var(--t));margin:0 0 18px}
+p{margin:0 0 12px}
+a{color:var(--rubric)}
+
+/* ---- card ---- */
+.card{background:var(--raise);border:1px solid var(--line);border-radius:3px;padding:20px;margin:16px 0}
+.card.vaulted{border-left:2px solid var(--gilt)}
+.card.fresh{border-left:2px solid var(--rubric)}
+
+.ref{
+  font-family:var(--sans);font-size:calc(12px*var(--t));letter-spacing:.19em;text-transform:uppercase;
+  color:var(--rubric);font-weight:600;margin-bottom:16px
+}
+.ref .lvl{color:var(--dim);float:right;letter-spacing:.1em;font-weight:400}
+
+/* scripture: one chunk per line, fixed breaks — never reflowed to viewport */
+.script{font-family:var(--serif);font-size:calc(21px*var(--t));line-height:1.75;letter-spacing:.005em}
+.script .ln{display:block;margin-bottom:2px}
+.script.scaffold{font-family:var(--mono);font-size:calc(17px*var(--t));letter-spacing:.13em;line-height:2;color:var(--ink)}
+.w{transition:opacity .28s ease,filter .28s ease}
+.w.gone{color:var(--dim)}
+.blankw{
+  display:inline-block;border-bottom:1px solid var(--rubric-dim);
+  min-width:2.1em;height:1.05em;vertical-align:baseline;margin:0 .12em
+}
+.cue{color:var(--mute);font-style:italic}
+
+textarea,input[type=text]{
+  width:100%;background:var(--ground);border:1px solid var(--line);border-radius:3px;
+  color:var(--ink);font-family:var(--serif);font-size:calc(19px*var(--t));line-height:1.6;
+  padding:13px;resize:vertical;margin:0
+}
+textarea:focus,input:focus{outline:none;border-color:var(--rubric)}
+textarea::placeholder{color:var(--dim);font-style:italic}
+label{display:block;font-size:calc(11px*var(--t));letter-spacing:.15em;text-transform:uppercase;color:var(--mute);margin:18px 0 7px}
+
+button.btn{
+  background:var(--rubric);color:#fff;border:0;border-radius:3px;padding:13px 20px;
+  font-family:var(--sans);font-size:calc(14px*var(--t));font-weight:600;cursor:pointer;letter-spacing:.02em
+}
+button.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink);font-weight:500}
+button.btn.gilt{background:var(--gilt);color:#1a1a1a}
+button.btn:disabled{opacity:.35;cursor:not-allowed}
+button.btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.row{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}
+.row .btn{flex:1;min-width:120px}
+.tiny{background:none;border:1px solid var(--line);color:var(--mute);border-radius:3px;
+  padding:6px 11px;font-size:calc(12px*var(--t));font-family:var(--sans);cursor:pointer}
+
+/* ---- diff ---- */
+.diff{font-family:var(--serif);font-size:calc(20px*var(--t));line-height:1.85;margin:6px 0 0}
+.diff .ok{color:var(--ink)}
+.diff .bad{color:var(--rubric);text-decoration:line-through;text-decoration-thickness:1px;opacity:.75}
+.diff .fix{color:var(--rubric);font-weight:600;border-bottom:2px solid var(--rubric)}
+.diff .missing{color:var(--rubric);font-weight:600;border-bottom:2px solid var(--rubric)}
+
+.verdict{font-family:var(--serif);font-size:calc(23px*var(--t));margin:0 0 10px}
+.verdict.pass{color:var(--ink)} .verdict.slip{color:var(--gilt)} .verdict.fail{color:var(--rubric)}
+
+.note{
+  border-left:2px solid var(--line);padding:11px 0 11px 14px;margin:16px 0;
+  color:var(--mute);font-size:calc(14px*var(--t));line-height:1.6
+}
+.note b{color:var(--ink);font-weight:600}
+.note.teach{border-left-color:var(--rubric)}
+
+/* ---- meters / stats ---- */
+.bar{height:3px;background:var(--line);border-radius:2px;overflow:hidden;margin:14px 0}
+.bar i{display:block;height:100%;background:var(--rubric);transition:width .4s}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin:16px 0}
+.stat{background:var(--raise);border:1px solid var(--line);border-radius:3px;padding:14px}
+.stat .n{font-family:var(--serif);font-size:calc(30px*var(--t));line-height:1.1}
+.stat .l{font-size:calc(10px*var(--t));letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin-top:5px}
+.stat.gilt .n{color:var(--gilt)}
+
+.vrow{
+  display:flex;align-items:baseline;gap:11px;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer
+}
+.vrow .vr{font-size:calc(12px*var(--t));letter-spacing:.13em;text-transform:uppercase;color:var(--rubric);font-weight:600;flex-shrink:0}
+.vrow .vt{font-family:var(--serif);color:var(--mute);font-size:calc(15px*var(--t));overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;flex:1}
+.vrow .vd{font-family:var(--mono);font-size:calc(11px*var(--t));color:var(--dim);flex-shrink:0}
+.vrow.v-vault .vr{color:var(--gilt)}
+
+/* ---- listener overlay ---- */
+.overlay{position:fixed;inset:0;background:var(--ground);z-index:60;overflow-y:auto;display:none}
+.overlay.on{display:block}
+.tapw{cursor:pointer;padding:1px 2px;border-radius:2px}
+.tapw.missed{background:var(--rubric);color:#fff}
+
+.chunkedit{font-family:var(--mono);font-size:calc(14px*var(--t));line-height:1.9}
+.pill{font-size:calc(10px*var(--t));letter-spacing:.13em;text-transform:uppercase;color:var(--dim);
+  border:1px solid var(--line);border-radius:2px;padding:2px 7px;margin-left:8px}
+
+#toast{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:78px;z-index:70;
+  background:var(--raise2);border:1px solid var(--line);border-radius:3px;
+  padding:11px 17px;font-size:calc(14px*var(--t));opacity:0;transition:opacity .25s;pointer-events:none;max-width:88%
+}
+#toast.on{opacity:1}
+.view{display:none} .view.on{display:block}
+hr{border:0;border-top:1px solid var(--line);margin:26px 0}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media print{
+  nav,header,.row,.tiny{display:none!important}
+  body{background:#fff;color:#000}
+  .card{border-color:#bbb;background:#fff}
+  .view{display:none!important} #v-method{display:block!important}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="head">
+    <div class="mark">Rub<b>ric</b></div>
+    <div class="dots" id="dots"></div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ======== TODAY ======== -->
+  <section class="view on" id="v-today">
+    <div id="today-body"></div>
+  </section>
+
+  <!-- ======== ADD ======== -->
+  <section class="view" id="v-add">
+    <h2>Add a verse</h2>
+    <p class="sub">Paste from anywhere. Reference is detected automatically.</p>
+    <div id="add-body"></div>
+  </section>
+
+  <!-- ======== LIBRARY ======== -->
+  <section class="view" id="v-lib">
+    <h2>Verses</h2>
+    <div id="lib-body"></div>
+  </section>
+
+  <!-- ======== STATS ======== -->
+  <section class="view" id="v-stats">
+    <h2>Where you stand</h2>
+    <div id="stats-body"></div>
+  </section>
+
+  <!-- ======== METHOD ======== -->
+  <section class="view" id="v-method">
+    <h2>The method</h2>
+    <p class="sub">One page. Print it — it should outlive the app.</p>
+
+    <div class="card">
+      <div class="ref">Taking a verse in</div>
+      <p><b>Hear it first.</b> Three times, before you ever say it. Your first
+      reading sets the phrasing you keep for decades, so don't invent it.</p>
+      <p><b>Break at clauses, 3–7 words.</b> Never at arbitrary word counts.
+      Grammar is free scaffolding.</p>
+      <p><b>Write the intention, not the topic.</b> Not "about grace" — "Paul
+      reassuring people who think they've been abandoned." Once you hold the
+      intention, the exact words start to feel necessary rather than arbitrary.</p>
+      <p><b>Same rhythm, every time.</b> Same stresses, same pauses. You don't
+      need a melody; you need consistency.</p>
+    </div>
+
+    <div class="card">
+      <div class="ref">The ladder</div>
+      <p style="font-family:var(--mono);font-size:calc(13px*var(--t));line-height:2">
+        0 — hear it recited<br>
+        1 — text open, then hide and say it<br>
+        2 — first letters only<br>
+        3 — quarter blanked, middle first<br>
+        4 — most blanked<br>
+        5 — reference alone<br>
+        6 — dropped in mid-verse, carry on
+      </p>
+      <p>Up a rung after two clean passes. <b>Down a rung after two fails —
+      but only while it's still new.</b> Once it's settled, stay high and let it
+      be hard.</p>
+    </div>
+
+    <div class="card">
+      <div class="ref">When you miss</div>
+      <p>Hear it. Say it with the text. Say it alone. <b>Then come back to it
+      before the session ends.</b> That last step is the one everybody skips and
+      it's worth more than the other three.</p>
+    </div>
+
+    <div class="card">
+      <div class="ref">Six ways it fails</div>
+      <p><b>Middle sag</b> — edges solid, middle mush. Drill the middle alone.<br>
+      <b>Cold start</b> — fluent from word one, helpless from the middle. Practise
+      entering mid-verse.<br>
+      <b>Lost reference</b> — you know it, can't place it. Drill text→reference.<br>
+      <b>Drift</b> — meaning kept, wording eroded. Never grade yourself.<br>
+      <b>Fluency illusion</b> — feels known, isn't. Check the calibration page.<br>
+      <b>Room-bound</b> — works at your desk, fails in conversation. Move around.</p>
+    </div>
+
+    <div class="card">
+      <div class="ref">The rules that hold it together</div>
+      <p><b>Nothing is ever finished.</b> Dropping a verse once you know it is
+      how you lose it. Retrieval keeps it; re-reading doesn't.</p>
+      <p><b>Two new verses a day. No more, ever.</b> A good week at ten a day
+      builds a debt that arrives in three weeks and ends the project.</p>
+      <p><b>Say it to a person weekly.</b> Every tradition that actually works at
+      this is oral and social. This is the part the app can't do for you.</p>
+    </div>
+
+    <div class="card">
+      <div class="ref">Settings</div>
+      <div id="settings-body"></div>
+    </div>
+  </section>
+</div>
+
+<!-- ======== LISTENER OVERLAY ======== -->
+<div class="overlay" id="listener"><div class="wrap" id="listener-body"></div></div>
+
+<nav><div class="navin">
+  <button data-v="today" class="on">Today</button>
+  <button data-v="add">Add</button>
+  <button data-v="lib">Verses</button>
+  <button data-v="stats">Stats</button>
+  <button data-v="method">Method</button>
+</div></nav>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   STORAGE — probes for whatever persistence this host allows.
+   Claude artifact host → window.storage; real deploy → IndexedDB;
+   then localStorage; then memory (session only).
+   ============================================================ */
+const Store = (()=>{
+  let mode="memory", mem={}, db=null;
+
+  function idbOpen(){
+    return new Promise((res,rej)=>{
+      const r = indexedDB.open("rubric",1);
+      r.onupgradeneeded = ()=> r.result.createObjectStore("kv");
+      r.onsuccess = ()=> res(r.result);
+      r.onerror = ()=> rej(r.error);
+      setTimeout(()=>rej(new Error("idb timeout")),1500);
+    });
+  }
+  async function init(){
+    if (typeof window!=="undefined" && window.storage && window.storage.get){
+      try{ await window.storage.set("__probe","1"); mode="cloud"; return mode; }catch(e){}
+    }
+    try{ db = await idbOpen(); mode="idb"; return mode; }catch(e){}
+    try{ localStorage.setItem("__probe","1"); localStorage.removeItem("__probe"); mode="ls"; return mode; }catch(e){}
+    return mode;
+  }
+  async function get(k){
+    try{
+      if(mode==="cloud"){ const r=await window.storage.get(k); return r? JSON.parse(r.value):null; }
+      if(mode==="idb") return await new Promise((res,rej)=>{
+        const t=db.transaction("kv","readonly").objectStore("kv").get(k);
+        t.onsuccess=()=>res(t.result??null); t.onerror=()=>rej(t.error);
+      });
+      if(mode==="ls"){ const v=localStorage.getItem(k); return v?JSON.parse(v):null; }
+      return mem[k]??null;
+    }catch(e){ return mem[k]??null; }
+  }
+  async function set(k,v){
+    mem[k]=v;
+    try{
+      if(mode==="cloud"){ await window.storage.set(k,JSON.stringify(v)); return; }
+      if(mode==="idb") return await new Promise((res,rej)=>{
+        const t=db.transaction("kv","readwrite").objectStore("kv").put(v,k);
+        t.onsuccess=()=>res(); t.onerror=()=>rej(t.error);
+      });
+      if(mode==="ls"){ localStorage.setItem(k,JSON.stringify(v)); return; }
+    }catch(e){}
+  }
+  return { init, get, set, mode:()=>mode };
+})();
+
+/* ============================================================
+   FSRS  (v4.5/5 formulation, default weights)
+   ============================================================ */
+const W=[0.40255,1.18385,3.173,15.69105,7.1949,0.5345,1.4604,0.0046,1.54575,
+         0.1192,1.01925,1.9395,0.11,0.29605,2.2698,0.2315,2.9898,0.51655,0.6621];
+const DECAY=-0.5, FACTOR=Math.pow(0.9,1/DECAY)-1;   // = 19/81
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+const DAY=86400000;
+
+const Fsrs={
+  R:(t,S)=> Math.pow(1+FACTOR*t/Math.max(S,.01), DECAY),
+  interval:(S,rd)=> (S/FACTOR)*(Math.pow(rd,1/DECAY)-1),
+  initS:g=>W[g-1],
+  initD:g=> clamp(W[4]-Math.exp(W[5]*(g-1))+1,1,10),
+  nextD(D,g){ const d=D-W[6]*(g-3); return clamp(W[7]*Fsrs.initD(4)+(1-W[7])*d,1,10); },
+  sRecall(D,S,R,g){
+    const hard=g===2?W[15]:1, easy=g===4?W[16]:1;
+    return S*(1+Math.exp(W[8])*(11-D)*Math.pow(S,-W[9])*(Math.exp(W[10]*(1-R))-1)*hard*easy);
+  },
+  sForget(D,S,R){
+    return Math.min(W[11]*Math.pow(D,-W[12])*(Math.pow(S+1,W[13])-1)*Math.exp(W[14]*(1-R)), S);
+  }
+};
+
+/* ============================================================
+   TEXT
+   ============================================================ */
+const FUNCTION_WORDS=new Set(("a an the and but or nor for so yet of to in on at by with from "+
+  "as that which who whom whose this these those it its is was be been are were am shall will "+
+  "unto upon into out up down o oh thy thine thee ye his her their our your my me him them us "+
+  "not no all any some such then than there here when while if though also even do did does have "+
+  "has had may might can could would should").split(" "));
+
+const norm = s => s.toLowerCase()
+  .replace(/[\u2018\u2019\u02BC]/g,"'").replace(/[\u201C\u201D]/g,'"')
+  .replace(/[^a-z0-9' ]+/g," ").replace(/\s+/g," ").trim();
+const words = s => norm(s) ? norm(s).split(" ") : [];
+const rawWords = s => s.trim().split(/\s+/).filter(Boolean);
+
+const BOOKS=("Genesis Exodus Leviticus Numbers Deuteronomy Joshua Judges Ruth Samuel Kings "+
+ "Chronicles Ezra Nehemiah Esther Job Psalm Psalms Proverbs Ecclesiastes Song Isaiah Jeremiah "+
+ "Lamentations Ezekiel Daniel Hosea Joel Amos Obadiah Jonah Micah Nahum Habakkuk Zephaniah "+
+ "Haggai Zechariah Malachi Matthew Mark Luke John Acts Romans Corinthians Galatians Ephesians "+
+ "Philippians Colossians Thessalonians Timothy Titus Philemon Hebrews James Peter Jude "+
+ "Revelation").split(" ");
+
+function parsePaste(raw){
+  let t = raw.replace(/\s+/g," ").trim();
+  const re=/((?:[1-3]\s*)?[A-Z][a-zA-Z]+\.?)\s+(\d+)\s*[:.]\s*(\d+(?:\s*[-\u2013]\s*\d+)?)/;
+  let ref="", m=t.match(re);
+  if(m && BOOKS.some(b=>m[1].replace(/[^a-zA-Z]/g,"").toLowerCase().startsWith(b.slice(0,4).toLowerCase()))){
+    ref=(m[1].replace(/\.$/,"")+" "+m[2]+":"+m[3]).replace(/\s+/g," ");
+    t=(t.slice(0,m.index)+t.slice(m.index+m[0].length)).trim();
+  }
+  t=t.replace(/^[\u2014\-–—:.,\s]+/,"").replace(/\s*\([A-Z]{2,6}\)\s*$/,"").trim();
+  t=t.replace(/^\d+\s+/,"");                       // stray leading verse number
+  return {ref,text:t};
+}
+
+/* clause-aware chunking.
+   The writer already marked the clauses with punctuation, so segment there
+   first and only then run a cost search inside each segment. Lines must never
+   end on a word that binds forward ("according", "the", "should"). */
+const TIGHT_AFTER=new Set(("to of for in on at with by from the a an and or but that which who whose "+
+ "unto into upon according as is was are were be been am art shall will would may might must can "+
+ "could have has had hath hast his her their my your our its this these those not no nor more most "+
+ "than then very so if though when while because therefore neither either both all every each any "+
+ "let lest ye thou thee we they he she it there here what how such same own one two three").split(" "));
+const START_GOOD=new Set(("and but for that which who whose because therefore so yet or when while "+
+ "though if as unto then nor to in with by from upon according neither either lest").split(" "));
+
+function dpSplit(w, lo, hi, out){
+  const n=hi-lo;
+  if(n<=8){ out.push(w.slice(lo,hi).join(" ")); return; }
+  const cost=j=>{
+    if(j<=lo||j>=hi) return 0;
+    if(TIGHT_AFTER.has(norm(w[j-1]))) return 10;
+    if(START_GOOD.has(norm(w[j]))) return 1;
+    return 4;
+  };
+  const len=(L,last)=> L>8?Infinity : L<3?(last?4:9) : Math.pow(L-5,2)*0.5;
+  const best=new Array(n+1).fill(Infinity), from=new Array(n+1).fill(-1);
+  best[0]=0;
+  for(let j=1;j<=n;j++) for(let i=Math.max(0,j-8);i<j;i++){
+    if(best[i]===Infinity) continue;
+    const c=best[i]+len(j-i,j===n)+cost(lo+j);
+    if(c<best[j]){ best[j]=c; from[j]=i; }
+  }
+  if(best[n]===Infinity){ out.push(w.slice(lo,hi).join(" ")); return; }
+  const cuts=[]; let j=n;
+  while(j>0){ cuts.unshift(from[j]); j=from[j]; }
+  cuts.push(n);
+  for(let k=0;k<cuts.length-1;k++) out.push(w.slice(lo+cuts[k],lo+cuts[k+1]).join(" "));
+}
+
+function autoChunk(text){
+  const w=rawWords(text); if(!w.length) return [];
+  if(w.length<=7) return [text.trim()];
+  const seg=[]; let s=0;
+  for(let i=0;i<w.length;i++){
+    if(/[,;:.\u2014\u2013!?]$/.test(w[i]) && i<w.length-1){ seg.push([s,i+1]); s=i+1; }
+  }
+  seg.push([s,w.length]);
+  const merged=[];
+  for(const [a,b] of seg){
+    const last=merged[merged.length-1];
+    if(last && (last[1]-last[0] < 3 || (b-a < 3 && (b-last[0])<=7))) last[1]=b;
+    else merged.push([a,b]);
+  }
+  const out=[];
+  for(const [a,b] of merged) dpSplit(w,a,b,out);
+  return out;
+}
+
+/* word-level alignment with backtrace */
+function align(a,b){
+  const n=a.length,m=b.length;
+  const d=Array.from({length:n+1},()=>new Int32Array(m+1));
+  for(let i=0;i<=n;i++) d[i][0]=i;
+  for(let j=0;j<=m;j++) d[0][j]=j;
+  for(let i=1;i<=n;i++) for(let j=1;j<=m;j++){
+    d[i][j]=Math.min(d[i-1][j]+1, d[i][j-1]+1, d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));
+  }
+  const ops=[]; let i=n,j=m;
+  while(i>0||j>0){
+    if(i>0&&j>0&&d[i][j]===d[i-1][j-1]+(a[i-1]===b[j-1]?0:1)){
+      ops.push(a[i-1]===b[j-1]?{t:"eq",a:a[i-1],i:i-1}:{t:"sub",a:a[i-1],b:b[j-1],i:i-1}); i--;j--;
+    } else if(i>0 && d[i][j]===d[i-1][j]+1){ ops.push({t:"del",a:a[i-1],i:i-1}); i--; }
+    else { ops.push({t:"ins",b:b[j-1],i:i}); j--; }
+  }
+  return ops.reverse();
+}
+
+/* grade an attempt → FSRS grade + diagnosis */
+function judge(expected, attempt, level, seconds){
+  const E=words(expected), G=words(attempt);
+  // a blank still gets a real diff — every word shown as missing, not an empty result
+  if(!G.length) return {g:1,kind:"blank",ops:align(E,[]),diffs:E.length};
+  const ops=align(E,G);
+  const diffs=ops.filter(o=>o.t!=="eq");
+  if(!diffs.length){
+    if(level>=5 && seconds < E.length*1.4) return {g:4,kind:"exact",ops,diffs:0};
+    return {g:3,kind:"exact",ops,diffs:0};
+  }
+  // right words, wrong order — order IS the content here
+  const sortedE=[...E].sort().join(" "), sortedG=[...G].sort().join(" ");
+  if(sortedE===sortedG) return {g:1,kind:"order",ops,diffs:diffs.length};
+  const onlyFunction = diffs.every(o=>
+    (!o.a || FUNCTION_WORDS.has(o.a)) && (!o.b || FUNCTION_WORDS.has(o.b)));
+  if(diffs.length<=2 && onlyFunction) return {g:2,kind:"slip",ops,diffs:diffs.length};
+  return {g:1,kind:"error",ops,diffs:diffs.length};
+}
+
+/* which chunk did the first content error land in? */
+function failedChunkIndex(v, ops){
+  const first=ops.find(o=>o.t!=="eq"); if(!first) return -1;
+  const wi=first.i??0; let n=0;
+  for(let c=0;c<v.chunks.length;c++){
+    n+=words(v.chunks[c]).length;
+    if(wi<n) return c;
+  }
+  return v.chunks.length-1;
+}
+
+/* ---- level renderers ---- */
+const firstLetters = s => rawWords(s).map(w=>{
+  const m=w.match(/[A-Za-z]/); if(!m) return w;
+  const tail=w.match(/[.,;:!?\u2014\u2013"']+$/);
+  return m[0]+(tail?tail[0]:"");
+}).join(" ");
+
+function clozeMask(v, fraction){
+  // centrality weighting — the middle sags, so blank the middle first
+  const n=v.chunks.length, mid=(n-1)/2;
+  const idx=[];
+  v.chunks.forEach((c,ci)=>{
+    const central = n<=1?1:1-Math.abs(ci-mid)/(mid+0.5);
+    rawWords(c).forEach((w,wi)=>idx.push({ci,wi,score:central+Math.random()*0.35, w}));
+  });
+  // low rates hit content words only (blanking "the" teaches nothing);
+  // high rates open up to everything, or "mostly blank" isn't mostly blank
+  const content = idx.filter(x=>!FUNCTION_WORDS.has(norm(x.w)));
+  const pool = (fraction>0.5 || content.length<3) ? idx : content;
+  pool.sort((a,b)=>b.score-a.score);
+  const take=Math.max(1,Math.round(pool.length*fraction));
+  const set=new Set(pool.slice(0,take).map(x=>x.ci+":"+x.wi));
+  return set;
+}
+
+/* ============================================================
+   MODEL
+   ============================================================ */
+const uid=()=>Math.random().toString(36).slice(2,10);
+let S={ verses:[], log:{}, cal:[], settings:{
+  retention:0.90, dailyCap:20, newCap:2, teaching:true, lastOral:0, textSize:1
+}, seen:{} };
+
+const todayKey=()=>new Date().toISOString().slice(0,10);
+function dayLog(){ const k=todayKey(); if(!S.log[k]) S.log[k]={rev:0,neu:0}; return S.log[k]; }
+
+function newVerse(ref,text,chunks,intention){
+  return { id:uid(), ref, text, chunks, intention:intention||"",
+    S:0, D:0, peakS:0, due:Date.now(), last:0, reps:0, lapses:0,
+    level:0, up:0, down:0, chunkFails:{}, modes:{}, override:null, created:Date.now() };
+}
+const tierOf = v => v.reps===0 ? "new" : (v.S<30 ? "recent" : "vault");
+const rd = v => v.override || S.settings.retention;
+const dueIn = v => Math.round((v.due-Date.now())/DAY);
+// "has this verse ever consolidated?" — not "is it consolidated right now".
+// Peak matters, because one bad lapse shouldn't reclassify a verse you've held
+// for two years as brand new material.
+const isAcquisition = v => (v.peakS||0) < 30;
+
+function applyGrade(v, g, info){
+  const now=Date.now();
+  const elapsed = v.last? Math.max(0,(now-v.last)/DAY) : 0;
+  // Vault leniency keys off the *classification*, not the error count. One wrong
+  // content word is a real miss even though it's only one word; only a
+  // function-word slip is forgiven. An empty diff means "no information", not
+  // "no errors", so a blank can never qualify.
+  const lenient = v.reps>0 && !!info && info.kind==="slip"
+                  && Fsrs.interval(v.S,rd(v))>540;
+
+  if(v.reps===0){
+    v.S=Fsrs.initS(g); v.D=Fsrs.initD(g);
+  } else {
+    // a record restored from an old backup may carry a nonsense difficulty;
+    // D=0 makes the forgetting curve return Infinity and lapses stop biting
+    if(!(v.D>=1 && v.D<=10)) v.D=Fsrs.initD(3);
+    if(!(v.S>0)) v.S=Fsrs.initS(3);
+    const R=Fsrs.R(elapsed, v.S);
+    if(g===1){ v.S=Fsrs.sForget(v.D,v.S,R); v.lapses++; }
+    else { v.S=Fsrs.sRecall(v.D,v.S,R,g); }
+    v.D=Fsrs.nextD(v.D,g);
+  }
+  // a forgiven slip still costs you something — nudge stability down and
+  // re-verify in a few months rather than resuming the multi-year cycle
+  if(lenient) v.S=Math.max(1, v.S*0.7);
+  v.S=clamp(v.S,0.1,36500);
+  v.peakS=Math.max(v.peakS||0, v.S);
+  v.reps++; v.last=now;
+  let iv=Fsrs.interval(v.S, rd(v));
+  if(lenient) iv=Math.min(iv,120);
+  v.due = now + Math.max(1,Math.round(iv))*DAY;
+
+  // Ladder. High success while acquiring, high difficulty once consolidated.
+  // Floor at rung 2 for consolidated verses: after a bad lapse you may need to
+  // come down, but handing an open book to someone who held this for two years
+  // is both insulting and a waste of the session.
+  if(g>=3){ v.up++; v.down=0; if(v.up>=2 && v.level<6){ v.level++; v.up=0; } }
+  else {
+    v.down++; v.up=0;
+    const floor = isAcquisition(v) ? 1 : 2;
+    if(v.down>=2 && v.level>floor){ v.level--; v.down=0; }
+  }
+  dayLog().rev++;
+}
+
+/* ============================================================
+   SESSION — sabaq / sabqi / manzil
+   ============================================================ */
+let session=null;
+function buildSession(){
+  const now=Date.now(), lg=dayLog();
+  const dueV = S.verses.filter(v=>v.reps>0 && v.due<=now).sort((a,b)=>a.due-b.due);
+  const backlog = dueV.length;
+  const newAllow = Math.max(0, Math.min(S.settings.newCap-lg.neu,
+                    backlog>S.settings.dailyCap?0:S.settings.newCap));
+  const fresh = S.verses.filter(v=>v.reps===0).slice(0,newAllow);
+  const room = Math.max(0, S.settings.dailyCap-lg.rev);
+  const recent = dueV.filter(v=>v.S<30), vault=dueV.filter(v=>v.S>=30);
+  const shuffle=a=>a.map(x=>[Math.random(),x]).sort((p,q)=>p[0]-q[0]).map(p=>p[1]);
+  const queue=[...fresh, ...shuffle(recent), ...shuffle(vault)].slice(0, room+fresh.length);
+  session={ queue, done:0, total:queue.length, retest:[], corrected:0, blocked:backlog>S.settings.dailyCap && newAllow===0 };
+  return session;
+}
+function nextItem(){
+  if(!session) return null;
+  if(session.retest.length && session.done%4===3) return session.retest.shift();
+  return session.queue.length?session.queue[0]:(session.retest.shift()||null);
+}
+
+/* ============================================================
+   VIEW HELPERS
+   ============================================================ */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("on");
+  clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("on"),2400); }
+async function save(){ await Store.set("state",S); }
+function applyTextSize(){
+  document.documentElement.style.setProperty("--t", S.settings.textSize||1);
+}
+
+function speak(text){
+  try{
+    if(!window.speechSynthesis) return toast("No speech on this device — read it aloud yourself.");
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text);
+    u.rate=0.82; u.pitch=1;
+    speechSynthesis.speak(u);
+  }catch(e){ toast("Speech unavailable."); }
+}
+
+function renderScript(v,{mode="full",mask=null,fromChunk=0}={}){
+  let html="";
+  v.chunks.forEach((c,ci)=>{
+    if(mode==="cold" && ci<fromChunk){ return; }
+    if(mode==="cold" && ci===fromChunk){
+      html+=`<span class="ln cue">${esc(c)} …</span>`; return;
+    }
+    if(mode==="cold"){ return; }
+    const ws=rawWords(c).map((w,wi)=>{
+      if(mode==="scaffold") return `<span class="w">${esc(firstLetters(w))}</span>`;
+      if(mode==="cloze" && mask.has(ci+":"+wi)) return `<span class="blankw"></span>`;
+      return `<span class="w">${esc(w)}</span>`;
+    }).join(" ");
+    html+=`<span class="ln">${ws}</span>`;
+  });
+  return html;
+}
+
+function renderDiff(ops){
+  return ops.map(o=>{
+    if(o.t==="eq")  return `<span class="ok">${esc(o.a)}</span>`;
+    if(o.t==="sub") return `<span class="bad">${esc(o.b)}</span> <span class="fix">${esc(o.a)}</span>`;
+    if(o.t==="del") return `<span class="missing">${esc(o.a)}</span>`;
+    return `<span class="bad">${esc(o.b)}</span>`;
+  }).join(" ");
+}
+
+function updateDots(){
+  const d=$("#dots"); if(!session){ d.innerHTML=""; return; }
+  const all=[...session.queue];
+  d.innerHTML=all.slice(0,10).map(v=>`<span class="dot ${tierOf(v)}"></span>`).join("")
+    + (all.length>10?`<span class="dot"></span>`:"");
+}
+
+const LEVEL_NAME=["hear it","open book","first letters","quarter blank","mostly blank","from the reference","mid-verse start"];
+
+const TEACH={
+  2:["First letters","Each word shrinks to its initial. Enough of a handhold to keep you moving, not enough to read. This is the workhorse rung — most of your gains happen here."],
+  3:["Blanks, middle first","The gaps cluster in the middle on purpose. Your first and last lines are already protected by where they sit; the middle is where verses rot."],
+  5:["From the reference alone","Nothing but the address now. This is the rung that matters in real life, because nobody hands you a first letter in conversation."],
+  6:["Dropped in mid-verse","You get a line from the middle and carry on. If you can only start from word one, you have one way in and it fails the moment you're interrupted. This builds the others."]
+};
+
+/* ============================================================
+   TODAY / DRILL
+   ============================================================ */
+let cur=null, phase="prompt", lastJudge=null, startedAt=0, predicted=null;
+
+function today(){
+  const el=$("#today-body");
+  if(!S.verses.length){
+    el.innerHTML=`
+      <h2>Nothing in here yet</h2>
+      <p class="sub">Add your first verse, and the app will walk you through
+      splitting it. After thirty or so it stops holding your hand.</p>
+      <div class="row">
+        <button class="btn" onclick="go('add')">Add a verse</button>
+        <button class="btn ghost" id="seed">Try a sample</button>
+      </div>`;
+    $("#seed").onclick=async()=>{
+      const t="For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.";
+      S.verses.push(newVerse("John 3:16", t, autoChunk(t), "God explaining the scale of what he gave, to people who assume they're outside it."));
+      await save(); toast("Sample added — delete it whenever."); today();
+    };
+    return;
+  }
+  if(!session) buildSession();
+  updateDots();
+
+  if(!session.total){
+    const next=S.verses.filter(v=>v.reps>0).sort((a,b)=>a.due-b.due)[0];
+    const oral=Math.floor((Date.now()-(S.settings.lastOral||0))/DAY);
+    el.innerHTML=`
+      <h2>Nothing due</h2>
+      <p class="sub">${next?`Next up in ${Math.max(0,dueIn(next))} day${dueIn(next)===1?"":"s"} — ${esc(next.ref)}.`:"Add a verse to begin."}</p>
+      ${oral>7?`<div class="note teach"><b>It's been ${oral} days since you recited to a person.</b>
+        Hand someone your phone and open listener mode from any verse. This is the
+        part no algorithm covers, and it's the strongest predictor that you'll still
+        have these in ten years.</div>`:""}
+      <div class="row"><button class="btn ghost" onclick="go('lib')">Browse verses</button></div>`;
+    return;
+  }
+  if(session.done>=session.total && !session.retest.length){
+    el.innerHTML=`
+      <h2>Done for today</h2>
+      <p class="sub">${session.total} reviewed${session.corrected?`, ${session.corrected} corrected and re-tested`:""}.</p>
+      ${session.blocked?`<div class="note"><b>New verses are on hold.</b> Your backlog is
+        above the daily cap. Clear it and intake reopens — this is deliberate.</div>`:""}
+      <div class="row"><button class="btn ghost" onclick="go('stats')">See where you stand</button></div>`;
+    updateDots(); return;
+  }
+  cur=nextItem();
+  if(!cur){ session.done=session.total; return today(); }
+  drawCard();
+}
+
+function drawCard(){
+  const el=$("#today-body"), v=cur, t=tierOf(v);
+  const pct=Math.round(100*session.done/Math.max(1,session.total));
+  const head=`
+    <p class="eyebrow">${t==="new"?"New":t==="recent"?"Recent":"Vault"} · ${session.done+1} of ${session.total}</p>
+    <div class="bar"><i style="width:${pct}%"></i></div>`;
+
+  /* ---- L0: hear it before you ever say it ---- */
+  if(v.level===0){
+    el.innerHTML=head+`
+      <div class="card fresh">
+        <div class="ref">${esc(v.ref)}<span class="lvl">hear it</span></div>
+        <div class="script">${renderScript(v)}</div>
+        ${v.intention?`<div class="note"><b>What's happening:</b> ${esc(v.intention)}</div>`:""}
+        <div class="note teach">Listen three times before you attempt it. Whatever
+        phrasing you invent on your first read is the phrasing you'll keep for
+        decades — so don't invent it, borrow it.</div>
+        <div class="row">
+          <button class="btn ghost" id="play">Play it</button>
+          <button class="btn" id="ready">I've heard it</button>
+        </div>
+      </div>`;
+    $("#play").onclick=()=>speak(v.text);
+    $("#ready").onclick=()=>{ v.level=1; save(); drawCard(); };
+    return;
+  }
+
+  /* ---- calibration: ask before long-interval reviews ---- */
+  const iv = v.reps? Fsrs.interval(v.S,rd(v)) : 0;
+  if(phase==="prompt" && predicted===null && iv>21 && v.level>=4){
+    el.innerHTML=head+`
+      <div class="card ${t==="vault"?"vaulted":""}">
+        <div class="ref">${esc(v.ref)}</div>
+        <p style="font-family:var(--serif);font-size:calc(22px*var(--t));margin:8px 0 4px">Think you'll get this?</p>
+        <p class="sub">You last saw it ${Math.round((Date.now()-v.last)/DAY)} days ago.</p>
+        <div class="row">
+          <button class="btn ghost" id="pn">No</button>
+          <button class="btn" id="py">Yes</button>
+        </div>
+      </div>`;
+    $("#py").onclick=()=>{ predicted=true; drawCard(); };
+    $("#pn").onclick=()=>{ predicted=false; drawCard(); };
+    return;
+  }
+
+  if(phase==="result") return drawResult();
+  if(phase==="correct") return drawCorrection();
+
+  /* ---- L1–L6 prompt ---- */
+  let body="", showText=false;
+  if(v.level===1){ body=renderScript(v); showText=true; }
+  else if(v.level===2) body=renderScript(v,{mode:"scaffold"});
+  else if(v.level===3) body=renderScript(v,{mode:"cloze",mask:clozeMask(v,0.25)});
+  else if(v.level===4) body=renderScript(v,{mode:"cloze",mask:clozeMask(v,0.60)});
+  else if(v.level===5) body=`<span class="ln cue">from the reference alone</span>`;
+  else { v._from = Math.max(0,Math.min(v.chunks.length-2, 1+Math.floor(Math.random()*Math.max(1,v.chunks.length-2))));
+         body=renderScript(v,{mode:"cold",fromChunk:v._from}); }
+
+  const teach = TEACH[v.level] && S.settings.teaching && !S.seen["lvl"+v.level];
+  el.innerHTML=head+`
+    <div class="card ${t==="vault"?"vaulted":""}">
+      <div class="ref">${esc(v.ref)}<span class="lvl">${LEVEL_NAME[v.level]}</span></div>
+      <div class="script ${v.level===2?"scaffold":""}">${body}</div>
+      ${teach?`<div class="note teach"><b>${esc(teach[0])}.</b> ${esc(teach[1])}</div>`:""}
+      <label>Say it aloud as you type</label>
+      <textarea id="att" rows="4" placeholder="${v.level===6?"…carry on from there":"Type it from memory"}" autocapitalize="sentences"></textarea>
+      <div class="row">
+        <button class="btn" id="check">Check it</button>
+        <button class="btn ghost" id="listen">Hear it</button>
+      </div>
+      <div class="row"><button class="tiny" id="lmode">Recite to a person instead</button></div>
+    </div>`;
+  if(teach) S.seen["lvl"+v.level]=1;
+  startedAt=Date.now();
+  const ta=$("#att");
+  $("#check").onclick=()=>submit(ta.value);
+  $("#listen").onclick=()=>speak(v.text);
+  $("#lmode").onclick=()=>openListener(v);
+  ta.addEventListener("keydown",e=>{ if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)) submit(ta.value); });
+  if(showText) ta.placeholder="Read it, then look away and type it";
+  ta.focus();
+}
+
+function expectedFor(v){
+  if(v.level===6){ return v.chunks.slice((v._from||0)+1).join(" ") || v.text; }
+  return v.text;
+}
+
+function submit(text){
+  const v=cur, secs=(Date.now()-startedAt)/1000;
+  const exp=expectedFor(v);
+  lastJudge=judge(exp, text, v.level, secs);
+  if(v.level===1 && lastJudge.g===4) lastJudge.g=3;    // open book can't earn Easy
+  if(predicted!==null){
+    S.cal.push({p:predicted, ok:lastJudge.g>=3, d:Date.now()});
+    if(S.cal.length>400) S.cal.shift();
+  }
+  const ci=failedChunkIndex(v,lastJudge.ops);
+  if(lastJudge.g<=2 && ci>=0){ v.chunkFails[ci]=(v.chunkFails[ci]||0)+1; }
+  v.modes[v.level]=v.modes[v.level]||{p:0,f:0};
+  lastJudge.g>=3? v.modes[v.level].p++ : v.modes[v.level].f++;
+  phase="result"; drawCard();
+}
+
+function diagnosis(v){
+  const ci=failedChunkIndex(v,lastJudge.ops);
+  const n=v.chunks.length;
+  if(lastJudge.kind==="order") return "Right words, wrong order. For verbatim text the order <em>is</em> the content, so this scores as a miss.";
+  if(lastJudge.kind==="slip") return "Function-word slip. Small, but it's how wording erodes over years — the meaning survives and the text doesn't.";
+  if(ci>0 && ci<n-1 && (v.chunkFails[ci]||0)>=3)
+    return `That's ${v.chunkFails[ci]} misses in the same middle line. Classic serial position — your first and last lines are protected by where they sit, the middle isn't. Drill that line on its own.`;
+  if(ci===0) return "Missed at the opening, which is unusual — the first line is normally the sturdy one. Worth hearing it again.";
+  if(v.level===6) return "Cold-start miss. Fluent from word one, lost from the middle. This is exactly the weakness this rung exists to find.";
+  return "";
+}
+
+function drawResult(){
+  const v=cur, j=lastJudge, el=$("#today-body");
+  const pass=j.g>=3;
+  const verdict = j.g===4?"Clean and quick.": j.g===3?"Got it.": j.g===2?"One slip.":"Not yet.";
+  const cls = j.g>=3?"pass": j.g===2?"slip":"fail";
+  const diag=diagnosis(v);
+  const calNote = predicted!==null && predicted && !pass
+    ? `<div class="note teach"><b>You said you'd get that one.</b> That gap is the whole
+       reason this app scores you instead of asking how it went.</div>` : "";
+  el.innerHTML=`
+    <div class="card ${pass?"":"fresh"}">
+      <div class="ref">${esc(v.ref)}<span class="lvl">${LEVEL_NAME[v.level]}</span></div>
+      <p class="verdict ${cls}">${verdict}</p>
+      <div class="diff">${renderDiff(j.ops)}</div>
+      ${diag?`<div class="note">${diag}</div>`:""}
+      ${calNote}
+      <div class="row">
+        ${pass?`<button class="btn" id="next">Next</button>`
+              :`<button class="btn" id="fix">Work it through</button>`}
+        <button class="btn ghost" id="hear">Hear it</button>
+      </div>
+    </div>`;
+  $("#hear").onclick=()=>speak(v.text);
+  if(pass) $("#next").onclick=advance;
+  else $("#fix").onclick=()=>{ phase="correct"; drawCard(); };
+}
+
+/* Direct-Instruction correction: model → lead → test → retest later */
+let corrStep=0;
+function drawCorrection(){
+  const v=cur, el=$("#today-body");
+  const ci=Math.max(0,failedChunkIndex(v,lastJudge.ops));
+  const line=v.chunks[ci]||v.text;
+  const steps=[
+    ["Hear the line", `<div class="script"><span class="ln">${esc(line)}</span></div>
+      <p class="sub">Just this line. Play it, listen, don't say anything yet.</p>`],
+    ["Say it with the text", `<div class="script"><span class="ln">${esc(line)}</span></div>
+      <p class="sub">Out loud, reading along. Once more after that.</p>`],
+    ["Now say it alone", `<div class="script"><span class="ln cue">…</span></div>
+      <p class="sub">Text hidden. Say the line from memory before you continue.</p>`]
+  ];
+  const [title,html]=steps[corrStep];
+  el.innerHTML=`
+    <div class="card fresh">
+      <div class="ref">${esc(v.ref)}<span class="lvl">${corrStep+1} of 3</span></div>
+      <p class="eyebrow">${title}</p>
+      ${html}
+      <div class="row">
+        <button class="btn ghost" id="say">Play the line</button>
+        <button class="btn" id="on">${corrStep<2?"Next":"Done"}</button>
+      </div>
+    </div>`;
+  $("#say").onclick=()=>speak(line);
+  $("#on").onclick=()=>{
+    if(corrStep<2){ corrStep++; return drawCorrection(); }
+    corrStep=0;
+    session.retest.push(v); session.corrected++;
+    toast("Queued to come back before you finish.");
+    advance();
+  };
+}
+
+function advance(){
+  const v=cur;
+  applyGrade(v, lastJudge.g, lastJudge);
+  const qi=session.queue.indexOf(v);
+  if(qi>=0) session.queue.splice(qi,1);
+  session.done++; phase="prompt"; predicted=null; lastJudge=null;
+  save(); updateDots(); today();
+}
+
+/* ============================================================
+   LISTENER MODE — hand the phone to a person
+   ============================================================ */
+let listenV=null, missed=new Set();
+function openListener(v){
+  listenV=v; missed=new Set();
+  const ws=[];
+  v.chunks.forEach((c,ci)=>rawWords(c).forEach((w,wi)=>ws.push({ci,wi,w})));
+  $("#listener-body").innerHTML=`
+    <h2 style="margin-top:24px">Listener</h2>
+    <p class="sub">Hand them the phone. They tap any word you miss, then tap Done.</p>
+    <div class="card">
+      <div class="ref">${esc(v.ref)}</div>
+      <div class="script" id="tapz">${v.chunks.map((c,ci)=>
+        `<span class="ln">${rawWords(c).map((w,wi)=>
+          `<span class="tapw" data-k="${ci}:${wi}">${esc(w)}</span>`).join(" ")}</span>`).join("")}</div>
+      <div class="row">
+        <button class="btn" id="ldone">Done</button>
+        <button class="btn ghost" id="lclose">Cancel</button>
+      </div>
+    </div>
+    <div class="note">This counts as your weekly oral recitation. Every tradition that
+    actually works at verbatim memory is oral and social — the app can prompt it, but
+    it can't be the person.</div>`;
+  $("#listener").classList.add("on");
+  $("#tapz").onclick=e=>{
+    const t=e.target.closest(".tapw"); if(!t) return;
+    const k=t.dataset.k;
+    if(missed.has(k)){ missed.delete(k); t.classList.remove("missed"); }
+    else { missed.add(k); t.classList.add("missed"); }
+  };
+  $("#lclose").onclick=()=>{ $("#listener").classList.remove("on"); };
+  $("#ldone").onclick=()=>{
+    $("#listener").classList.remove("on");
+    S.settings.lastOral=Date.now();
+    const total=$("#tapz").querySelectorAll(".tapw").length;
+    const g = missed.size===0 ? 3 : (missed.size<=2 ? 2 : 1);
+    if(cur && cur.id===v.id){
+      lastJudge={g, kind:missed.size?"error":"exact", ops:[], diffs:missed.size};
+      phase="result"; drawCard();
+    } else {
+      applyGrade(v,g,{kind:missed.size?"error":"exact",diffs:missed.size}); save(); toast(missed.size?`${missed.size} of ${total} missed — recorded.`:"Clean recitation — recorded.");
+      today();
+    }
+  };
+}
+
+/* ============================================================
+   ADD
+   ============================================================ */
+let draft={ref:"",text:"",chunks:[],intention:""};
+function addView(){
+  const n=S.verses.length;
+  const stage = n<=5?0 : n<=15?1 : n<=30?2 : 3;
+  const lg=dayLog();
+  const left=S.settings.newCap-lg.neu;
+  const el=$("#add-body");
+
+  if(left<=0){
+    el.innerHTML=`<div class="card"><p class="verdict fail">Two already today.</p>
+      <p>That's the cap, and it doesn't lift. A good week at ten a day builds a review
+      debt that lands three weeks later and ends the project. Come back tomorrow.</p></div>`;
+    return;
+  }
+  const coach=[
+    `<div class="note teach"><b>I'll split this one for you and show my reasoning.</b>
+     Breaks go at clause boundaries, three to seven words. Grammar is a scaffold you
+     get for nothing — cutting across it throws that away.</div>`,
+    `<div class="note teach"><b>I've split it — now you correct me.</b> Look at whether
+     each break falls where you'd naturally pause when speaking it.</div>`,
+    `<div class="note teach"><b>Your split, my warnings only.</b> One line per chunk.</div>`,
+    ``][stage];
+
+  el.innerHTML=`
+    ${coach}
+    <label>Paste the verse</label>
+    <textarea id="paste" rows="4" placeholder="Romans 8:28 And we know that all things work together for good…"></textarea>
+    <div class="row"><button class="btn" id="parse">Split it</button></div>
+    <div id="stage2"></div>`;
+  $("#parse").onclick=()=>{
+    const {ref,text}=parsePaste($("#paste").value);
+    if(!text) return toast("Nothing to split yet.");
+    draft={ref,text,chunks:autoChunk(text),intention:""};
+    stage2(stage);
+  };
+}
+
+function stage2(stage){
+  const d=draft;
+  $("#stage2").innerHTML=`
+    <hr>
+    <label>Reference</label>
+    <input type="text" id="ref" value="${esc(d.ref)}" placeholder="Romans 8:28">
+    <label>Lines <span class="pill">${d.chunks.length}</span></label>
+    <textarea id="chunks" rows="${Math.max(4,d.chunks.length+1)}" class="chunkedit">${esc(d.chunks.join("\n"))}</textarea>
+    <p class="sub" style="margin-top:8px">One line per phrase. These breaks are fixed —
+    the verse will always appear in exactly this shape, so the layout becomes part of
+    what you remember.</p>
+    ${stage<=1?`<div class="note"><b>Why here:</b> ${esc(explainSplit(d.chunks))}</div>`:``}
+    <label>What's happening — the intention, not the topic</label>
+    <textarea id="intent" rows="2" placeholder="Paul reassuring people who think they've been abandoned"></textarea>
+    <div class="note">Not "about grace." Who is doing what to whom, and why. Once you
+    hold that, the exact words start to feel necessary instead of arbitrary — and you
+    get a second route back to the text when the rote one fails.</div>
+    <div class="row"><button class="btn" id="savev">Add it</button></div>`;
+  $("#chunks").addEventListener("input",e=>{
+    const lines=e.target.value.split("\n").filter(x=>x.trim());
+    const bad=lines.find(l=>rawWords(l).length>9);
+    if(bad) toast("That line's over nine words — long for one breath.");
+  });
+  $("#savev").onclick=async()=>{
+    const ref=$("#ref").value.trim()||"Untitled";
+    const chunks=$("#chunks").value.split("\n").map(s=>s.trim()).filter(Boolean);
+    if(!chunks.length) return toast("No lines.");
+    const v=newVerse(ref, chunks.join(" "), chunks, $("#intent").value.trim());
+    S.verses.push(v); dayLog().neu++;
+    session=null; await save();
+    toast(`${ref} added. Listen to it first.`);
+    go("today");
+  };
+}
+function explainSplit(chunks){
+  const c=chunks[0]||"";
+  if(/[,;:]$/.test(c)) return `the first break lands on the punctuation — the writer already told us where the clause ends`;
+  if(chunks.length===1) return `it's short enough to hold as one phrase, so it stays whole`;
+  return `breaks fall before conjunctions and after clauses, keeping each line to a single breath`;
+}
+
+/* ============================================================
+   LIBRARY
+   ============================================================ */
+function libView(){
+  const el=$("#lib-body");
+  if(!S.verses.length){ el.innerHTML=`<p class="sub">Empty. Add one.</p>`; return; }
+  const sorted=[...S.verses].sort((a,b)=>a.due-b.due);
+  el.innerHTML=sorted.map(v=>{
+    const d=dueIn(v);
+    const when = v.reps===0?"new": d<=0?"due": d<30?`${d}d`: d<365?`${Math.round(d/30)}mo`:`${(d/365).toFixed(1)}y`;
+    return `<div class="vrow v-${tierOf(v)}" data-id="${v.id}">
+      <span class="vr">${esc(v.ref)}</span>
+      <span class="vt">${esc(v.chunks[0]||"")}</span>
+      <span class="vd">${when}</span></div>`;
+  }).join("")+`<div class="row">
+      <button class="btn ghost" id="exp">Export backup</button>
+      <button class="btn ghost" id="imp">Import</button>
+    </div>
+    <div class="note">There is no "mastered" button and there never will be. Dropping a
+    verse once you've got it right is precisely how people lose what they memorised
+    twenty years ago — it's retrieval that keeps it, not having learned it once.</div>`;
+  el.querySelectorAll(".vrow").forEach(r=>r.onclick=()=>detail(r.dataset.id));
+  $("#exp").onclick=()=>{
+    const blob=new Blob([JSON.stringify(S,null,2)],{type:"application/json"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob); a.download=`rubric-${todayKey()}.json`; a.click();
+  };
+  $("#imp").onclick=()=>{
+    const i=document.createElement("input"); i.type="file"; i.accept="application/json";
+    i.onchange=async()=>{ const f=i.files[0]; if(!f)return;
+      try{ const j=JSON.parse(await f.text()); if(!j.verses) throw 0;
+        S=Object.assign(S,j); session=null; await save(); toast("Restored."); libView();
+      }catch(e){ toast("That file didn't parse."); } };
+    i.click();
+  };
+}
+
+function detail(id){
+  const v=S.verses.find(x=>x.id===id); if(!v) return;
+  const el=$("#lib-body");
+  const modes=Object.entries(v.modes).map(([k,m])=>
+    `${LEVEL_NAME[k]}: ${m.p}/${m.p+m.f}`).join(" · ")||"not drilled yet";
+  el.innerHTML=`
+    <div class="card ${tierOf(v)==="vault"?"vaulted":""}">
+      <div class="ref">${esc(v.ref)}<span class="lvl">${LEVEL_NAME[v.level]}</span></div>
+      <div class="script">${renderScript(v)}</div>
+      ${v.intention?`<div class="note"><b>What's happening:</b> ${esc(v.intention)}</div>`:""}
+      <div class="note">
+        Stability <b>${v.S.toFixed(1)}d</b> · difficulty <b>${v.D.toFixed(1)}</b> ·
+        reviewed <b>${v.reps}×</b> · lapses <b>${v.lapses}</b><br>
+        Due in <b>${Math.max(0,dueIn(v))}d</b> at ${Math.round(rd(v)*100)}% target<br>
+        <span style="color:var(--dim)">${modes}</span>
+      </div>
+      <div class="row">
+        <button class="btn ghost" id="hear">Hear it</button>
+        <button class="btn ghost" id="lst">Recite to a person</button>
+      </div>
+      <div class="row">
+        <button class="tiny" id="core">${v.override?"Drop to 90% target":"Make this a core verse (95%)"}</button>
+        <button class="tiny" id="del">Delete</button>
+        <button class="tiny" id="back">Back</button>
+      </div>
+    </div>`;
+  $("#hear").onclick=()=>speak(v.text);
+  $("#lst").onclick=()=>openListener(v);
+  $("#back").onclick=libView;
+  $("#core").onclick=async()=>{ v.override=v.override?null:0.95; await save();
+    toast(v.override?"Core verse — reviewed roughly twice as often.":"Back to standard."); detail(id); };
+  $("#del").onclick=async()=>{
+    if(!confirm(`Delete ${v.ref} permanently? This isn't "retire" — the verse and its history go.`)) return;
+    S.verses=S.verses.filter(x=>x.id!==id); session=null; await save(); libView();
+  };
+}
+
+/* ============================================================
+   STATS
+   ============================================================ */
+function statsView(){
+  const el=$("#stats-body");
+  const n=S.verses.length, mature=S.verses.filter(v=>v.S>=30).length;
+  const vault=S.verses.filter(v=>tierOf(v)==="vault").length;
+  const yearly=S.verses.reduce((a,v)=>a+(v.S>0?365/Math.max(1,Fsrs.interval(v.S,rd(v))):12),0);
+  const cal=S.cal.slice(-120);
+  const said=cal.filter(c=>c.p).length, saidOk=cal.filter(c=>c.p&&c.ok).length;
+  const conf = said? Math.round(100*saidOk/said):null;
+  const claimed = cal.length? Math.round(100*said/cal.length):null;
+  const oral=S.settings.lastOral? Math.floor((Date.now()-S.settings.lastOral)/DAY):null;
+
+  el.innerHTML=`
+    <div class="grid">
+      <div class="stat"><div class="n">${n}</div><div class="l">verses held</div></div>
+      <div class="stat gilt"><div class="n">${vault}</div><div class="l">in the vault</div></div>
+      <div class="stat"><div class="n">${Math.round(yearly)}</div><div class="l">reviews per year</div></div>
+      <div class="stat"><div class="n">${(yearly/365).toFixed(1)}</div><div class="l">per day, steady state</div></div>
+    </div>
+    <div class="note">A mature verse costs one or two reviews a year. Three hundred verses
+    settles at one or two reviews a day — for life. The instinct that this becomes an
+    ever-growing burden is simply wrong, and it's the main reason people never start.</div>
+
+    <h2>Calibration</h2>
+    ${cal.length<8?`<p class="sub">Answer a few more "think you'll get this?" prompts and
+      your real numbers appear here. They're usually uncomfortable.</p>`:`
+      <p class="sub">Across your last ${cal.length} long-gap reviews.</p>
+      <div class="grid">
+        <div class="stat"><div class="n">${claimed}%</div><div class="l">you said yes</div></div>
+        <div class="stat"><div class="n">${conf}%</div><div class="l">of those, correct</div></div>
+      </div>
+      <div class="note teach">${conf<85
+        ? `<b>Your confidence runs about ${Math.max(0,claimed-conf)} points ahead of your memory.</b>
+           That gap is the fluency illusion, measured on you rather than described at you.
+           It's also the entire argument for letting the app score you instead of asking
+           how you think it went.`
+        : `<b>Well calibrated.</b> You know what you know, which is rarer than it sounds —
+           most people overshoot by twenty points.`}</div>`}
+
+    <h2>Oral recitation</h2>
+    <p class="sub">${oral===null?"You haven't recited to a person yet."
+      :oral===0?"Today. Good.":`${oral} day${oral===1?"":"s"} ago.`}</p>
+    ${(oral===null||oral>7)?`<div class="note teach">The hafiz tradition, chavruta study,
+      Suzuki lessons, one-to-one tutoring — everything with a real track record at this is
+      oral and social. Solo use is the weakest version of the method, and you should know
+      that before you put three years into it.</div>`:""}
+    <div class="row"><button class="btn ghost" onclick="go('lib')">Pick a verse to recite</button></div>`;
+}
+
+/* ============================================================
+   SETTINGS
+   ============================================================ */
+function settingsView(){
+  const s=S.settings;
+  $("#settings-body").innerHTML=`
+    <label>Target retention — ${Math.round(s.retention*100)}%</label>
+    <div class="row">
+      ${[0.85,0.90,0.95].map(r=>`<button class="tiny" data-r="${r}"
+        style="${r===s.retention?"border-color:var(--rubric);color:var(--ink)":""}">${r*100}%</button>`).join("")}
+    </div>
+    <p class="sub" style="margin-top:10px">Ninety is the right answer. Ninety-five roughly
+    doubles your reviews; ninety-nine multiplies them by ten and is unsustainable past
+    about fifty verses. Use the per-verse override for a small core instead.</p>
+    <label>Text size</label>
+    <div class="row">
+      ${[[0.85,"Small"],[1,"Default"],[1.2,"Large"],[1.45,"Larger"]].map(([n,l])=>
+        `<button class="tiny" data-t="${n}"
+         style="${n===(s.textSize||1)?"border-color:var(--rubric);color:var(--ink)":""}">${l}</button>`).join("")}
+    </div>
+    <div class="card" style="margin:12px 0 0;padding:14px">
+      <div class="script"><span class="ln">And we know that all things work together</span></div>
+    </div>
+    <label>Daily review cap</label>
+    <input type="text" id="cap" value="${s.dailyCap}">
+    <label>Teaching notes</label>
+    <div class="row"><button class="tiny" id="tog">${s.teaching?"On — turn off":"Off — turn on"}</button></div>
+    <p class="sub" style="margin-top:10px">Explanations appear once each, then never again.
+    Turn them off entirely if you already know this material — scaffolding that helps a
+    beginner makes an expert worse.</p>
+    <hr>
+    <p class="sub">Build <b>1.2</b> · storage <b>${Store.mode()}</b>. Export a backup from the Verses tab
+    regularly — this is the only copy.</p>`;
+  $("#settings-body").querySelectorAll("[data-r]").forEach(b=>b.onclick=async()=>{
+    S.settings.retention=parseFloat(b.dataset.r); session=null; await save(); settingsView(); });
+  $("#settings-body").querySelectorAll("[data-t]").forEach(b=>b.onclick=async()=>{
+    S.settings.textSize=parseFloat(b.dataset.t); applyTextSize(); await save(); settingsView(); });
+  $("#tog").onclick=async()=>{ s.teaching=!s.teaching; await save(); settingsView(); };
+  $("#cap").onchange=async e=>{ const v=parseInt(e.target.value)||20;
+    s.dailyCap=clamp(v,5,200); session=null; await save(); settingsView(); };
+}
+
+/* ============================================================
+   ROUTER
+   ============================================================ */
+function go(v){
+  document.querySelectorAll(".view").forEach(x=>x.classList.remove("on"));
+  $("#v-"+v).classList.add("on");
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
+  window.scrollTo(0,0);
+  if(v==="today"){ session=null; today(); }
+  if(v==="add") addView();
+  if(v==="lib") libView();
+  if(v==="stats") statsView();
+  if(v==="method") settingsView();
+}
+window.go=go;
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>go(b.dataset.v));
+
+(async function boot(){
+  await Store.init();
+  const saved=await Store.get("state");
+  applyTextSize();
+  if(saved){ S=Object.assign(S,saved); S.settings=Object.assign({retention:0.90,dailyCap:20,newCap:2,teaching:true,lastOral:0,textSize:1},saved.settings||{}); }
+  applyTextSize();
+  today();
+  if("serviceWorker" in navigator){
+    try{ navigator.serviceWorker.register("sw.js"); }catch(e){}
+  }
+})();
+</script>
+</body>
+</html>
