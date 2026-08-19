@@ -265,9 +265,11 @@ hr{border:0;border-top:1px solid var(--line);margin:26px 0}
 
     <div class="card">
       <div class="ref">When you miss</div>
-      <p>Hear it. Say it with the text. Say it alone. <b>Then come back to it
-      before the session ends.</b> That last step is the one everybody skips and
-      it's worth more than the other three.</p>
+      <p>Hear the line. Say it reading along. <b>Then type it alone and have it
+      checked</b> — an unverified "say it to yourself" step is the same
+      self-grading that lets wording quietly erode.</p>
+      <p>Then it comes back <b>before the session ends</b>. That last part is the
+      one everybody skips, and it's worth more than the other three.</p>
     </div>
 
     <div class="card">
@@ -992,13 +994,13 @@ function drawResult(){
 }
 
 /* Direct-Instruction correction: model → lead → test → retest later */
-let corrStep=0, corrList=[], corrIdx=0;
+let corrStep=0, corrList=[], corrIdx=0, corrAttempt=0, corrJudge=null;
 
 function startCorrection(){
   corrList = failedChunks(cur, lastJudge.ops);
   if(!corrList.length) corrList=[0];
   if(corrList.length>5) corrList=corrList.slice(0,5);   // stay humane on a total blank
-  corrIdx=0; corrStep=0; phase="correct"; drawCard();
+  corrIdx=0; corrStep=0; corrAttempt=0; corrJudge=null; phase="correct"; drawCard();
 }
 
 function drawCorrection(){
@@ -1006,37 +1008,86 @@ function drawCorrection(){
   const ci=corrList[corrIdx];
   const line=v.chunks[ci]||v.text;
   const many=corrList.length>1;
+  const pos=`${many?`line ${corrIdx+1} of ${corrList.length} · `:""}step ${corrStep+1} of 3`;
+
+  /* Step 3 is a real test. Model, lead, then produce it alone and have it
+     checked — an unverified "say it to yourself" step is exactly the
+     self-grading this app exists to avoid. */
+  if(corrStep===2){
+    if(corrJudge){
+      const pass=corrJudge.g>=3;
+      el.innerHTML=`
+        <div class="card fresh">
+          <div class="ref">${esc(v.ref)}<span class="lvl">${pos}</span></div>
+          <p class="verdict ${pass?"pass":"fail"}">${pass?"That's the line.":"Not quite."}</p>
+          <div class="diff">${renderDiff(corrJudge.ops)}</div>
+          <div class="row">
+            ${pass || corrAttempt>=2
+              ? `<button class="btn" id="on">${corrIdx<corrList.length-1?"Next line":"Done"}</button>`
+              : `<button class="btn" id="retry">Try it again</button>`}
+            <button class="btn ghost" id="say">Hear the line</button>
+          </div>
+          ${!pass&&corrAttempt>=2?`<div class="note">Two attempts is enough for now —
+            it comes back before the session ends.</div>`:""}
+        </div>`;
+      $("#say").onclick=()=>speak(line);
+      if($("#retry")) $("#retry").onclick=()=>{ corrJudge=null; corrStep=0; drawCorrection(); };
+      if($("#on")) $("#on").onclick=()=>{
+        corrJudge=null; corrAttempt=0;
+        if(corrIdx<corrList.length-1){ corrIdx++; corrStep=0; return drawCorrection(); }
+        finishCorrection();
+      };
+      return;
+    }
+    el.innerHTML=`
+      <div class="card fresh">
+        <div class="ref">${esc(v.ref)}<span class="lvl">${pos}</span></div>
+        <p class="eyebrow">Now type it alone</p>
+        <div class="script"><span class="ln cue">…</span></div>
+        <p class="sub">Text hidden. Say it aloud as you type — just this one line.</p>
+        <textarea id="catt" rows="2" placeholder="${esc(line.split(" ").slice(0,2).join(" "))}…"></textarea>
+        <div class="row">
+          <button class="btn" id="ccheck">Check it</button>
+          <button class="btn ghost" id="say">Hear it again</button>
+        </div>
+      </div>`;
+    const ta=$("#catt");
+    $("#say").onclick=()=>speak(line);
+    $("#ccheck").onclick=()=>{
+      corrAttempt++;
+      corrJudge=judge(line, ta.value, 5, 3);
+      drawCorrection();
+    };
+    ta.addEventListener("keydown",e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); $("#ccheck").click(); }});
+    ta.focus();
+    return;
+  }
+
   const steps=[
     ["Hear the line", `<div class="script"><span class="ln">${esc(line)}</span></div>
       <p class="sub">Just this line. Play it, listen, don't say anything yet.</p>`],
     ["Say it with the text", `<div class="script"><span class="ln">${esc(line)}</span></div>
-      <p class="sub">Out loud, reading along. Once more after that.</p>`],
-    ["Now say it alone", `<div class="script"><span class="ln cue">…</span></div>
-      <p class="sub">Text hidden. Say the line from memory before you continue.</p>`]
+      <p class="sub">Out loud, reading along. Once more after that.</p>`]
   ];
   const [title,html]=steps[corrStep];
   el.innerHTML=`
     <div class="card fresh">
-      <div class="ref">${esc(v.ref)}<span class="lvl">${many?`line ${corrIdx+1} of ${corrList.length} · `:""}step ${corrStep+1} of 3</span></div>
+      <div class="ref">${esc(v.ref)}<span class="lvl">${pos}</span></div>
       <p class="eyebrow">${title}</p>
       ${html}
       <div class="row">
         <button class="btn ghost" id="say">Play the line</button>
-        <button class="btn" id="on">${corrStep<2?"Next":(corrIdx<corrList.length-1?"Next line":"Done")}</button>
+        <button class="btn" id="on">Next</button>
       </div>
       ${many?`<div class="row"><button class="tiny" id="skip">Skip the rest</button></div>`:""}
     </div>`;
   $("#say").onclick=()=>speak(line);
-  $("#on").onclick=()=>{
-    if(corrStep<2){ corrStep++; return drawCorrection(); }
-    if(corrIdx<corrList.length-1){ corrIdx++; corrStep=0; return drawCorrection(); }
-    finishCorrection();
-  };
+  $("#on").onclick=()=>{ corrStep++; drawCorrection(); };
   if(many) $("#skip").onclick=finishCorrection;
 }
 
 function finishCorrection(){
-  corrStep=0; corrIdx=0; corrList=[];
+  corrStep=0; corrIdx=0; corrList=[]; corrAttempt=0; corrJudge=null;
   if(!curIsRetest && !session.practice){
     session.retest.push(cur); session.corrected++;
     toast("Queued to come back before you finish.");
@@ -1461,7 +1512,7 @@ function settingsView(){
     Turn them off entirely if you already know this material — scaffolding that helps a
     beginner makes an expert worse.</p>
     <hr>
-    <p class="sub">Build <b>1.4</b> · storage <b>${Store.mode()}</b>. Export a backup from the Verses tab
+    <p class="sub">Build <b>1.5</b> · storage <b>${Store.mode()}</b>. Export a backup from the Verses tab
     regularly — this is the only copy.</p>`;
   $("#settings-body").querySelectorAll("[data-r]").forEach(b=>b.onclick=async()=>{
     S.settings.retention=parseFloat(b.dataset.r); session=null; await save(); settingsView(); });
