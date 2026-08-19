@@ -80,6 +80,8 @@ a{color:var(--rubric)}
 /* scripture: one chunk per line, fixed breaks — never reflowed to viewport */
 .script{font-family:var(--serif);font-size:calc(21px*var(--t));line-height:1.75;letter-spacing:.005em}
 .script .ln{display:block;margin-bottom:2px}
+.script .ln.addr{font-family:var(--sans);font-size:calc(12px*var(--t));letter-spacing:.19em;
+  text-transform:uppercase;color:var(--rubric);font-weight:600;margin-bottom:11px}
 .script.scaffold{font-family:var(--mono);font-size:calc(17px*var(--t));letter-spacing:.13em;line-height:2;color:var(--ink)}
 .w{transition:opacity .28s ease,filter .28s ease}
 .w.gone{color:var(--dim)}
@@ -258,6 +260,13 @@ hr{border:0;border-top:1px solid var(--line);margin:26px 0}
       words have grammar, rhythm and an argument holding them up. "Romans 8:28" has
       none of that — it's an arbitrary label, so it <b>fades faster than the verse
       does</b>.</p>
+      <p><b>Say the address as the first line.</b> Same rhythm, every time, so it
+      stops being a separate fact and becomes word order — which is the thing memory
+      is best at. This only helps in one direction, though: serial chains don't run
+      backwards, so it makes the address <em>available</em> when you start from it,
+      not <em>retrievable</em> when you start from the text.</p>
+      <p>For that direction you need a hook, which is why the app offers one only
+      after a number has actually started slipping.</p>
       <p>So it's asked in the other direction, on its own clock: you get the opening
       line, you give the address. Near misses count for something — two verses out
       scores better than the wrong chapter.</p>
@@ -291,6 +300,26 @@ hr{border:0;border-top:1px solid var(--line);margin:26px 0}
       builds a debt that arrives in three weeks and ends the project.</p>
       <p><b>Say it to a person weekly.</b> Every tradition that actually works at
       this is oral and social. This is the part the app can't do for you.</p>
+    </div>
+
+    <div class="card">
+      <div class="ref">Hooks for numbers</div>
+      <p>A <b>personal</b> association beats an invented one every time — a birthday,
+      a house number, an age. Use those wherever they exist.</p>
+      <p>Where they don't, the app builds one from the Major System, which is four
+      centuries old and still what competitive memorisers use. Digits become consonant
+      sounds; vowels are free, so any number turns into a word:</p>
+      <p style="font-family:var(--mono);font-size:calc(13px*var(--t));line-height:2">
+        1 t, d &nbsp; 2 n &nbsp; 3 m &nbsp; 4 r &nbsp; 5 l<br>
+        6 sh, ch, j &nbsp; 7 k, g &nbsp; 8 f, v &nbsp; 9 p, b &nbsp; 0 s, z
+      </p>
+      <p>So 8 is <b>ivy</b>, 28 is <b>knife</b>, and Romans 8:28 becomes an ivy-wrapped
+      knife. You don't have to learn the system to use what it produces — but if you
+      want to, that table is the whole of it.</p>
+      <p>Two warnings. It takes weeks before you can build these fluently yourself.
+      And mnemonics are better evidenced for <em>learning</em> something than for
+      <em>keeping</em> it — they give you a route back when recall fails. Spaced
+      retrieval is still what holds it.</p>
     </div>
 
     <div class="card">
@@ -573,7 +602,7 @@ function clozeMask(v, fraction){
    ============================================================ */
 const uid=()=>Math.random().toString(36).slice(2,10);
 let S={ verses:[], log:{}, cal:[], settings:{
-  retention:0.90, dailyCap:20, newCap:2, teaching:true, lastOral:0, textSize:1
+  retention:0.90, dailyCap:20, newCap:2, teaching:true, lastOral:0, textSize:1, refFirst:true
 }, seen:{} };
 
 const todayKey=()=>new Date().toISOString().slice(0,10);
@@ -592,6 +621,68 @@ const dueIn = v => Math.round((v.due-Date.now())/DAY);
 // for two years as brand new material.
 const isAcquisition = v => (v.peakS||0) < 30;
 
+/* ---- Spoken references, number pegs, and collisions ---- */
+const ONES=["zero","one","two","three","four","five","six","seven","eight","nine","ten",
+ "eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen"];
+const TENS=["","","twenty","thirty","forty","fifty","sixty","seventy","eighty","ninety"];
+function sayNum(n){
+  n=+n||0;
+  if(n<20) return ONES[n];
+  if(n<100){ const o=n%10; return TENS[Math.floor(n/10)]+(o?"-"+ONES[o]:""); }
+  const r=n%100;
+  return ONES[Math.floor(n/100)]+" hundred"+(r?" "+sayNum(r):"");
+}
+// chapters and verses are spoken in pairs — "Psalm one nineteen", not
+// "Psalm one hundred nineteen"; and 105 is "one oh five"
+function sayRefNum(n){
+  n=+n||0;
+  if(n<100) return sayNum(n);
+  const hd=Math.floor(n/100), r=n%100;
+  if(r===0) return ONES[hd]+" hundred";
+  if(r<10)  return ONES[hd]+" oh "+ONES[r];
+  return ONES[hd]+" "+sayNum(r);
+}
+const ORD={1:"First",2:"Second",3:"Third"};
+function spokenRef(ref){
+  const m=String(ref||"").match(/^\s*([1-3]|I{1,3})?\s*([A-Za-z]+)\.?\s*(\d+)\s*[:.]\s*(\d+)/);
+  if(!m) return String(ref||"");
+  const n=m[1]?({I:1,II:2,III:3}[m[1]]||+m[1]):0;
+  return (n?ORD[n]+" ":"")+m[2]+" "+sayRefNum(m[3])+" "+sayRefNum(m[4]);
+}
+
+/* Major System: digits map to consonant sounds (1=t/d 2=n 3=m 4=r 5=l
+   6=sh/ch/j 7=k/g 8=f/v 9=p/b 0=s/z), vowels are free, so any number
+   becomes a word. Four centuries old and still what memory athletes use. */
+const PEG=("zoo tie Noah ma rye law shoe cow ivy bee "+
+"toes tot tin tomb tyre towel dish tack dove tub "+
+"nose net nun gnome Nero nail notch neck knife knob "+
+"mouse mat moon mummy mower mule match mug movie map "+
+"rose rat rain ram rower roll roach rock roof rope "+
+"lace light lion lamb lyre lily leech log lava lip "+
+"cheese sheet chain chime chair jail judge chalk chef ship "+
+"case cat can comb car coal cage cake cave cap "+
+"face fat phone foam fire file fish fog fife fob "+
+"bus bat bone beam bear bell bush book beef pipe").split(" ");
+const pegFor = n => (n=+n||0) <= 99 ? PEG[n] : PEG[Math.floor(n/100)]+"-"+PEG[n%100];
+function pegSuggestion(ref){
+  const r=parseRef(ref); if(!r) return "";
+  return `${pegFor(r.ch)} + ${pegFor(r.vs)}`;
+}
+
+/* Confusable references are the main failure mode once you hold a few hundred */
+function collisions(ref, exclude){
+  const R=parseRef(ref); if(!R) return [];
+  return S.verses.filter(v=>{
+    if(exclude && v.id===exclude) return false;
+    const E=parseRef(v.ref); if(!E) return false;
+    const sameBook = E.num===R.num && Math.min(E.book.length,R.book.length)>=3
+      && (E.book.startsWith(R.book)||R.book.startsWith(E.book));
+    if(sameBook && E.ch===R.ch && E.vs!==R.vs && Math.abs(E.vs-R.vs)<=3) return true;
+    if(!sameBook && E.ch===R.ch && E.vs===R.vs) return true;
+    return false;
+  });
+}
+
 /* ---- Reference recall: a separate schedule, deliberately.
    "Romans 8:28" is an arbitrary paired associate — no grammar, no rhythm, no
    argument holding it together — so it decays faster than the text it points
@@ -599,7 +690,7 @@ const isAcquisition = v => (v.peakS||0) < 30;
    need asking. It gets its own stability. ---- */
 function ensureRef(v){
   if(v.rDue===undefined){
-    v.rS=0; v.rD=0; v.rPeak=0; v.rLast=0; v.rReps=0; v.rLapses=0;
+    v.rS=0; v.rD=0; v.rPeak=0; v.rLast=0; v.rReps=0; v.rLapses=0; v.refHook=v.refHook||"";
     v.rDue = v.reps>0 ? Date.now() : Date.now()+2*DAY;
   }
   return v;
@@ -735,6 +826,9 @@ function applyTextSize(){
   document.documentElement.style.setProperty("--t", S.settings.textSize||1);
 }
 
+function speakVerse(v){
+  speak((S.settings.refFirst!==false ? spokenRef(v.ref)+". " : "") + v.text);
+}
 function speak(text){
   try{
     if(!window.speechSynthesis) return toast("No speech on this device — read it aloud yourself.");
@@ -745,8 +839,10 @@ function speak(text){
   }catch(e){ toast("Speech unavailable."); }
 }
 
-function renderScript(v,{mode="full",mask=null,fromChunk=0}={}){
+function renderScript(v,{mode="full",mask=null,fromChunk=0,withRef=false}={}){
   let html="";
+  if(withRef && S.settings.refFirst!==false)
+    html+=`<span class="ln addr">${esc(spokenRef(v.ref))}</span>`;
   v.chunks.forEach((c,ci)=>{
     if(mode==="cold" && ci<fromChunk){ return; }
     if(mode==="cold" && ci===fromChunk){
@@ -862,8 +958,12 @@ function drawCard(){
     el.innerHTML=head+`
       <div class="card fresh">
         <div class="ref">${esc(v.ref)}<span class="lvl">hear it</span></div>
-        <div class="script">${renderScript(v)}</div>
+        <div class="script">${renderScript(v,{withRef:true})}</div>
         ${v.intention?`<div class="note"><b>What's happening:</b> ${esc(v.intention)}</div>`:""}
+        ${S.settings.refFirst!==false?`<div class="note teach"><b>Say the address as part of the verse.</b>
+          Same rhythm, every time, so it becomes the first line rather than a separate
+          fact to look up. This is how the reciting traditions carry chapter and verse
+          numbers, and it turns an arbitrary pairing into simple word order.</div>`:""}
         <div class="note teach">Listen three times before you attempt it. Whatever
         phrasing you invent on your first read is the phrasing you'll keep for
         decades — so don't invent it, borrow it.</div>
@@ -872,7 +972,7 @@ function drawCard(){
           <button class="btn" id="ready">I've heard it</button>
         </div>
       </div>`;
-    $("#play").onclick=()=>speak(v.text);
+    $("#play").onclick=()=>speakVerse(v);
     $("#ready").onclick=()=>{ v.level=1; save(); drawCard(); };
     return;
   }
@@ -900,10 +1000,10 @@ function drawCard(){
 
   /* ---- L1–L6 prompt ---- */
   let body="", showText=false;
-  if(v.level===1){ body=renderScript(v); showText=true; }
-  else if(v.level===2) body=renderScript(v,{mode:"scaffold"});
-  else if(v.level===3) body=renderScript(v,{mode:"cloze",mask:clozeMask(v,0.25)});
-  else if(v.level===4) body=renderScript(v,{mode:"cloze",mask:clozeMask(v,0.60)});
+  if(v.level===1){ body=renderScript(v,{withRef:true}); showText=true; }
+  else if(v.level===2) body=renderScript(v,{mode:"scaffold",withRef:true});
+  else if(v.level===3) body=renderScript(v,{mode:"cloze",mask:clozeMask(v,0.25),withRef:true});
+  else if(v.level===4) body=renderScript(v,{mode:"cloze",mask:clozeMask(v,0.60),withRef:true});
   else if(v.level===5) body=`<span class="ln cue">from the reference alone</span>`;
   else { v._from = Math.max(0,Math.min(v.chunks.length-2, 1+Math.floor(Math.random()*Math.max(1,v.chunks.length-2))));
          body=renderScript(v,{mode:"cold",fromChunk:v._from}); }
@@ -926,7 +1026,7 @@ function drawCard(){
   startedAt=Date.now();
   const ta=$("#att");
   $("#check").onclick=()=>submit(ta.value);
-  $("#listen").onclick=()=>speak(v.text);
+  $("#listen").onclick=()=>speakVerse(v);
   $("#lmode").onclick=()=>openListener(v);
   ta.addEventListener("keydown",e=>{ if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)) submit(ta.value); });
   if(showText) ta.placeholder="Read it, then look away and type it";
@@ -988,7 +1088,7 @@ function drawResult(){
         <button class="btn ghost" id="hear">Hear it</button>
       </div>
     </div>`;
-  $("#hear").onclick=()=>speak(v.text);
+  $("#hear").onclick=()=>speakVerse(v);
   if(pass) $("#next").onclick=advance;
   else $("#fix").onclick=startCorrection;
 }
@@ -1172,6 +1272,7 @@ function drawRefCard(){
       <div class="card">
         <div class="ref" style="color:var(--mute)">where is this?</div>
         <div class="script">${v.chunks.slice(0,2).map(c=>`<span class="ln">${esc(c)}</span>`).join("")}${v.chunks.length>2?`<span class="ln cue">…</span>`:""}</div>
+        ${v.refHook && v.rLapses>=1 ? `<div class="note">Hook: ${esc(v.refHook)}</div>`:""}
         <label>Book, chapter, verse</label>
         <input type="text" id="ratt" placeholder="Romans 8:28" autocapitalize="words" autocomplete="off">
         <div class="row"><button class="btn" id="rcheck">Check it</button></div>
@@ -1190,15 +1291,33 @@ function drawRefCard(){
   }
 
   const j=refJudge, pass=j.g>=3;
+  // A hook is only worth building for a number that has actually proven sticky.
+  // Offering one for all 300 references is work you mostly don't need.
+  const earned = !pass && (v.rLapses>=1) && !v.refHook;
   el.innerHTML=head+`
     <div class="card ${pass?"":"fresh"}">
       <div class="ref">${esc(v.ref)}</div>
       <p class="verdict ${pass?"pass":j.g===2?"slip":"fail"}">${pass?"Placed it.":j.g===2?"Nearly.":"Not there."}</p>
       ${j.why?`<div class="note">${esc(j.why)}</div>`:""}
+      ${v.refHook&&!pass?`<div class="note teach"><b>Your hook:</b> ${esc(v.refHook)}</div>`:""}
       <div class="script">${v.chunks.map(c=>`<span class="ln">${esc(c)}</span>`).join("")}</div>
+      ${earned?`
+        <div class="note teach"><b>This number keeps slipping.</b> Give it something to
+        hang on. A personal association beats anything invented — a birthday, a house
+        number, a shirt number. Failing that, here's a made one: numbers map to
+        consonant sounds, so ${esc(parseRef(v.ref)?String(parseRef(v.ref).ch):"")} and
+        ${esc(parseRef(v.ref)?String(parseRef(v.ref).vs):"")} become
+        <b>${esc(pegSuggestion(v.ref))}</b>. Picture the two together, absurdly.</div>
+        <label>A hook for ${esc(v.ref)}</label>
+        <input type="text" id="rhook" placeholder="${esc(pegSuggestion(v.ref))}">
+        <div class="row"><button class="tiny" id="rhuse">Use the made one</button></div>`:""}
       <div class="row"><button class="btn" id="rnext">Next</button></div>
     </div>`;
+  if(earned){
+    $("#rhuse").onclick=()=>{ $("#rhook").value=pegSuggestion(v.ref); };
+  }
   $("#rnext").onclick=()=>{
+    const hk=$("#rhook"); if(hk && hk.value.trim()) v.refHook=hk.value.trim();
     applyRefGrade(v, refJudge.g);
     session.refs.shift(); session.refDone++;
     refCur=null; refPhase="ask"; refJudge=null;
@@ -1311,6 +1430,13 @@ function stage2(stage){
     the verse will always appear in exactly this shape, so the layout becomes part of
     what you remember.</p>
     ${stage<=1?`<div class="note"><b>Why here:</b> ${esc(explainSplit(d.chunks))}</div>`:``}
+    ${(()=>{ const c=collisions(d.ref);
+      if(!c.length) return "";
+      return `<div class="note teach"><b>Confusable with ${c.map(x=>esc(x.ref)).join(", ")}.</b>
+        Near-identical numbers are the main way reference recall fails once you hold a
+        few hundred — the two blur into each other and you stop trusting either. Worth
+        giving this one a distinctive hook early rather than after it starts slipping.</div>`;
+    })()}
     <label>What's happening — the intention, not the topic</label>
     <textarea id="intent" rows="2" placeholder="Paul reassuring people who think they've been abandoned"></textarea>
     <div class="note">Not "about grace." Who is doing what to whom, and why. Once you
@@ -1329,7 +1455,12 @@ function stage2(stage){
     const v=newVerse(ref, chunks.join(" "), chunks, $("#intent").value.trim());
     S.verses.push(v); dayLog().neu++;
     session=null; await save();
-    toast(`${ref} added. Listen to it first.`);
+    const r=parseRef(ref), sameCh = r? S.verses.filter(x=>{
+      const e=parseRef(x.ref);
+      return e && e.ch===r.ch && e.num===r.num && Math.min(e.book.length,r.book.length)>=3
+        && (e.book.startsWith(r.book)||r.book.startsWith(e.book));
+    }).length : 0;
+    toast(sameCh>1 ? `${ref} added — that's ${sameCh} from this chapter.` : `${ref} added. Listen to it first.`);
     go("today");
   };
 }
@@ -1343,24 +1474,46 @@ function explainSplit(chunks){
 /* ============================================================
    LIBRARY
    ============================================================ */
+let libSort="due";
 function libView(){
   const el=$("#lib-body");
   if(!S.verses.length){ el.innerHTML=`<p class="sub">Empty. Add one.</p>`; return; }
-  const sorted=[...S.verses].sort((a,b)=>a.due-b.due);
-  el.innerHTML=sorted.map(v=>{
+  const rowFor=v=>{
     const d=dueIn(v);
     const when = v.reps===0?"new": d<=0?"due": d<30?`${d}d`: d<365?`${Math.round(d/30)}mo`:`${(d/365).toFixed(1)}y`;
     return `<div class="vrow v-${tierOf(v)}" data-id="${v.id}">
       <span class="vr">${esc(v.ref)}</span>
       <span class="vt">${esc(v.chunks[0]||"")}</span>
       <span class="vd">${when}</span></div>`;
-  }).join("")+`<div class="row">
+  };
+  let listHtml="";
+  if(libSort==="book"){
+    const groups={};
+    S.verses.forEach(v=>{
+      const r=parseRef(v.ref);
+      const k=r?`${(r.num?r.num+" ":"")+r.book} ${r.ch}`:"Unplaced";
+      (groups[k]=groups[k]||[]).push(v);
+    });
+    listHtml=Object.keys(groups).sort().map(k=>{
+      const g=groups[k].sort((a,b)=>(parseRef(a.ref)?.vs||0)-(parseRef(b.ref)?.vs||0));
+      return `<p class="eyebrow" style="margin:22px 0 2px">${esc(k)} <span class="pill">${g.length}</span></p>`
+        + g.map(rowFor).join("");
+    }).join("");
+  } else {
+    listHtml=[...S.verses].sort((a,b)=>a.due-b.due).map(rowFor).join("");
+  }
+  el.innerHTML=`<div class="row" style="margin:0 0 6px">
+      <button class="tiny" id="sortd" style="${libSort==="due"?"border-color:var(--rubric);color:var(--ink)":""}">By due date</button>
+      <button class="tiny" id="sortb" style="${libSort==="book"?"border-color:var(--rubric);color:var(--ink)":""}">By book &amp; chapter</button>
+    </div>`+listHtml+`<div class="row">
       <button class="btn ghost" id="exp">Export backup</button>
       <button class="btn ghost" id="imp">Import</button>
     </div>
     <div class="note">There is no "mastered" button and there never will be. Dropping a
     verse once you've got it right is precisely how people lose what they memorised
     twenty years ago — it's retrieval that keeps it, not having learned it once.</div>`;
+  $("#sortd").onclick=()=>{ libSort="due"; libView(); };
+  $("#sortb").onclick=()=>{ libSort="book"; libView(); };
   el.querySelectorAll(".vrow").forEach(r=>r.onclick=()=>detail(r.dataset.id));
   $("#exp").onclick=()=>{
     const blob=new Blob([JSON.stringify(S,null,2)],{type:"application/json"});
@@ -1391,6 +1544,7 @@ function detail(id){
         Text: stability <b>${v.S.toFixed(1)}d</b> · difficulty <b>${v.D.toFixed(1)}</b> ·
         reviewed <b>${v.reps}×</b> · lapses <b>${v.lapses}</b><br>
         Due in <b>${Math.max(0,dueIn(v))}d</b> at ${Math.round(rd(v)*100)}% target<br>
+        ${v.refHook?`Hook: <b>${esc(v.refHook)}</b><br>`:""}
         Reference: ${v.rReps?`stability <b>${v.rS.toFixed(1)}d</b> · asked <b>${v.rReps}×</b> · due in <b>${Math.max(0,Math.round((v.rDue-Date.now())/DAY))}d</b>`:"<b>not asked yet</b>"}<br>
         <span style="color:var(--dim)">${modes}</span>
       </div>
@@ -1402,13 +1556,22 @@ function detail(id){
         <button class="btn ghost" id="lst">Recite to a person</button>
       </div>
       <div class="row">
+        <button class="tiny" id="hook">${v.refHook?"Edit the hook":"Add a hook for the number"}</button>
+      </div>
+      <div class="row">
         <button class="tiny" id="core">${v.override?"Drop to 90% target":"Make this a core verse (95%)"}</button>
         <button class="tiny" id="del">Delete</button>
         <button class="tiny" id="back">Back</button>
       </div>
     </div>`;
+  $("#hook").onclick=async()=>{
+    const cur=v.refHook||"";
+    const val=prompt(`A hook for ${v.ref}.\n\nA personal association works best — a birthday, a house number. Otherwise the made one is: ${pegSuggestion(v.ref)}`, cur||pegSuggestion(v.ref));
+    if(val===null) return;
+    v.refHook=val.trim(); await save(); detail(id);
+  };
   $("#prac").onclick=()=>startPractice(v);
-  $("#hear").onclick=()=>speak(v.text);
+  $("#hear").onclick=()=>speakVerse(v);
   $("#lst").onclick=()=>openListener(v);
   $("#back").onclick=libView;
   $("#core").onclick=async()=>{ v.override=v.override?null:0.95; await save();
@@ -1506,18 +1669,24 @@ function settingsView(){
     </div>
     <label>Daily review cap</label>
     <input type="text" id="cap" value="${s.dailyCap}">
+    <label>Address as first line</label>
+    <div class="row"><button class="tiny" id="rf">${s.refFirst!==false?"On — turn off":"Off — turn on"}</button></div>
+    <p class="sub" style="margin-top:10px">Shows and speaks "Romans eight twenty-eight"
+    as the opening line of the verse, so the number is carried by rhythm rather than
+    looked up.</p>
     <label>Teaching notes</label>
     <div class="row"><button class="tiny" id="tog">${s.teaching?"On — turn off":"Off — turn on"}</button></div>
     <p class="sub" style="margin-top:10px">Explanations appear once each, then never again.
     Turn them off entirely if you already know this material — scaffolding that helps a
     beginner makes an expert worse.</p>
     <hr>
-    <p class="sub">Build <b>1.5</b> · storage <b>${Store.mode()}</b>. Export a backup from the Verses tab
+    <p class="sub">Build <b>1.6</b> · storage <b>${Store.mode()}</b>. Export a backup from the Verses tab
     regularly — this is the only copy.</p>`;
   $("#settings-body").querySelectorAll("[data-r]").forEach(b=>b.onclick=async()=>{
     S.settings.retention=parseFloat(b.dataset.r); session=null; await save(); settingsView(); });
   $("#settings-body").querySelectorAll("[data-t]").forEach(b=>b.onclick=async()=>{
     S.settings.textSize=parseFloat(b.dataset.t); applyTextSize(); await save(); settingsView(); });
+  $("#rf").onclick=async()=>{ s.refFirst=!(s.refFirst!==false); await save(); settingsView(); };
   $("#tog").onclick=async()=>{ s.teaching=!s.teaching; await save(); settingsView(); };
   $("#cap").onchange=async e=>{ const v=parseInt(e.target.value)||20;
     s.dailyCap=clamp(v,5,200); session=null; await save(); settingsView(); };
@@ -1544,7 +1713,7 @@ document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>go(b.dataset.v)
   await Store.init();
   const saved=await Store.get("state");
   applyTextSize();
-  if(saved){ S=Object.assign(S,saved); S.settings=Object.assign({retention:0.90,dailyCap:20,newCap:2,teaching:true,lastOral:0,textSize:1},saved.settings||{}); }
+  if(saved){ S=Object.assign(S,saved); S.settings=Object.assign({retention:0.90,dailyCap:20,newCap:2,teaching:true,lastOral:0,textSize:1,refFirst:true},saved.settings||{}); }
   S.verses.forEach(ensureRef);
   applyTextSize();
   today();
