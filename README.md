@@ -36,6 +36,9 @@ hundred.
   your confidence runs ahead of your memory.
 - **A hard cap of two new verses a day**, which it will not lift.
 - **Listener mode.** Hand someone your phone; they tap what you miss.
+- **Practice mode.** Drill any verse any time from the Verses tab. Scored, with
+  the full correction loop — but recorded nowhere, because early reps build
+  little and would drag your intervals down for years.
 
 ## Back up
 

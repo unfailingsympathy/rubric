@@ -243,6 +243,16 @@ hr{border:0;border-top:1px solid var(--line);margin:26px 0}
     </div>
 
     <div class="card">
+      <div class="ref">Practising off the clock</div>
+      <p>Open any verse from the Verses tab and tap <b>Practise now</b>. Full drill,
+      full scoring, full correction — recorded nowhere.</p>
+      <p>That last part is deliberate rather than lazy. Reviewing something while you
+      still remember it well builds almost no durability, and letting those reps into
+      the schedule would pull your intervals down and cost you reviews for years. Look
+      at a verse whenever you like; just don't let it move the clock.</p>
+    </div>
+
+    <div class="card">
       <div class="ref">The address</div>
       <p>Knowing a verse you can't place is a real failure, and a common one. The
       words have grammar, rhythm and an argument holding them up. "Romans 8:28" has
@@ -507,15 +517,28 @@ function judge(expected, attempt, level, seconds){
   return {g:1,kind:"error",ops,diffs:diffs.length};
 }
 
-/* which chunk did the first content error land in? */
-function failedChunkIndex(v, ops){
-  const first=ops.find(o=>o.t!=="eq"); if(!first) return -1;
-  const wi=first.i??0; let n=0;
-  for(let c=0;c<v.chunks.length;c++){
-    n+=words(v.chunks[c]).length;
-    if(wi<n) return c;
+/* every chunk that contained an error — not just the first.
+   Blank the whole verse and you need the whole verse repaired; miss three
+   lines and repairing one leaves two broken. Level 6 only asks for the tail
+   of the verse, so word indices need offsetting back to real chunk numbers. */
+function failedChunks(v, ops){
+  const off = v.level===6 ? (v._from||0)+1 : 0;
+  const seg = v.chunks.slice(off);
+  if(!seg.length) return [];
+  const bounds=[]; let n=0;
+  seg.forEach(c=>{ n+=words(c).length; bounds.push(n); });
+  const set=new Set();
+  for(const o of ops){
+    if(o.t==="eq") continue;
+    const wi=o.i||0;
+    let k=bounds.findIndex(b=>wi<b);
+    if(k<0) k=seg.length-1;
+    set.add(off+k);
   }
-  return v.chunks.length-1;
+  return [...set].sort((a,b)=>a-b);
+}
+function failedChunkIndex(v, ops){
+  const f=failedChunks(v,ops); return f.length?f[0]:-1;
 }
 
 /* ---- level renderers ---- */
@@ -688,10 +711,14 @@ function buildSession(){
             blocked:backlog>S.settings.dailyCap && newAllow===0 };
   return session;
 }
+let curIsRetest=false;
 function nextItem(){
   if(!session) return null;
-  if(session.retest.length && session.done%4===3) return session.retest.shift();
-  return session.queue.length?session.queue[0]:(session.retest.shift()||null);
+  if(session.retest.length && (!session.queue.length || session.done%4===3)){
+    curIsRetest=true; return session.retest.shift();
+  }
+  curIsRetest=false;
+  return session.queue.length ? session.queue[0] : null;
 }
 
 /* ============================================================
@@ -796,7 +823,11 @@ function today(){
         Hand someone your phone and open listener mode from any verse. This is the
         part no algorithm covers, and it's the strongest predictor that you'll still
         have these in ten years.</div>`:""}
-      <div class="row"><button class="btn ghost" onclick="go('lib')">Browse verses</button></div>`;
+      <div class="row">
+        <button class="btn" onclick="go('lib')">Practise a verse</button>
+      </div>
+      <div class="note">Nothing due doesn't mean nothing to do — open any verse and
+      practise it. That runs the full drill without touching its schedule.</div>`;
     return;
   }
   if(session.done>=session.total && !session.retest.length && session.refs.length){
@@ -819,9 +850,10 @@ function today(){
 function drawCard(){
   const el=$("#today-body"), v=cur, t=tierOf(v);
   const pct=Math.round(100*session.done/Math.max(1,session.total));
-  const head=`
-    <p class="eyebrow">${t==="new"?"New":t==="recent"?"Recent":"Vault"} · ${session.done+1} of ${session.total}</p>
-    <div class="bar"><i style="width:${pct}%"></i></div>`;
+  const head = session.practice
+    ? `<p class="eyebrow">Practice · nothing recorded</p>`
+    : `<p class="eyebrow">${t==="new"?"New":t==="recent"?"Recent":"Vault"} · ${session.done+1} of ${session.total}</p>
+       <div class="bar"><i style="width:${pct}%"></i></div>`;
 
   /* ---- L0: hear it before you ever say it ---- */
   if(v.level===0){
@@ -845,7 +877,7 @@ function drawCard(){
 
   /* ---- calibration: ask before long-interval reviews ---- */
   const iv = v.reps? Fsrs.interval(v.S,rd(v)) : 0;
-  if(phase==="prompt" && predicted===null && iv>21 && v.level>=4){
+  if(phase==="prompt" && predicted===null && iv>21 && v.level>=4 && !session.practice){
     el.innerHTML=head+`
       <div class="card ${t==="vault"?"vaulted":""}">
         <div class="ref">${esc(v.ref)}</div>
@@ -956,15 +988,24 @@ function drawResult(){
     </div>`;
   $("#hear").onclick=()=>speak(v.text);
   if(pass) $("#next").onclick=advance;
-  else $("#fix").onclick=()=>{ phase="correct"; drawCard(); };
+  else $("#fix").onclick=startCorrection;
 }
 
 /* Direct-Instruction correction: model → lead → test → retest later */
-let corrStep=0;
+let corrStep=0, corrList=[], corrIdx=0;
+
+function startCorrection(){
+  corrList = failedChunks(cur, lastJudge.ops);
+  if(!corrList.length) corrList=[0];
+  if(corrList.length>5) corrList=corrList.slice(0,5);   // stay humane on a total blank
+  corrIdx=0; corrStep=0; phase="correct"; drawCard();
+}
+
 function drawCorrection(){
   const v=cur, el=$("#today-body");
-  const ci=Math.max(0,failedChunkIndex(v,lastJudge.ops));
+  const ci=corrList[corrIdx];
   const line=v.chunks[ci]||v.text;
+  const many=corrList.length>1;
   const steps=[
     ["Hear the line", `<div class="script"><span class="ln">${esc(line)}</span></div>
       <p class="sub">Just this line. Play it, listen, don't say anything yet.</p>`],
@@ -976,31 +1017,86 @@ function drawCorrection(){
   const [title,html]=steps[corrStep];
   el.innerHTML=`
     <div class="card fresh">
-      <div class="ref">${esc(v.ref)}<span class="lvl">${corrStep+1} of 3</span></div>
+      <div class="ref">${esc(v.ref)}<span class="lvl">${many?`line ${corrIdx+1} of ${corrList.length} · `:""}step ${corrStep+1} of 3</span></div>
       <p class="eyebrow">${title}</p>
       ${html}
       <div class="row">
         <button class="btn ghost" id="say">Play the line</button>
-        <button class="btn" id="on">${corrStep<2?"Next":"Done"}</button>
+        <button class="btn" id="on">${corrStep<2?"Next":(corrIdx<corrList.length-1?"Next line":"Done")}</button>
       </div>
+      ${many?`<div class="row"><button class="tiny" id="skip">Skip the rest</button></div>`:""}
     </div>`;
   $("#say").onclick=()=>speak(line);
   $("#on").onclick=()=>{
     if(corrStep<2){ corrStep++; return drawCorrection(); }
-    corrStep=0;
-    session.retest.push(v); session.corrected++;
-    toast("Queued to come back before you finish.");
-    advance();
+    if(corrIdx<corrList.length-1){ corrIdx++; corrStep=0; return drawCorrection(); }
+    finishCorrection();
   };
+  if(many) $("#skip").onclick=finishCorrection;
+}
+
+function finishCorrection(){
+  corrStep=0; corrIdx=0; corrList=[];
+  if(!curIsRetest && !session.practice){
+    session.retest.push(cur); session.corrected++;
+    toast("Queued to come back before you finish.");
+  }
+  advance();
 }
 
 function advance(){
   const v=cur;
-  applyGrade(v, lastJudge.g, lastJudge);
-  const qi=session.queue.indexOf(v);
-  if(qi>=0) session.queue.splice(qi,1);
-  session.done++; phase="prompt"; predicted=null; lastJudge=null;
+  if(session.practice){
+    // practice is deliberately inert — see startPractice
+  } else if(curIsRetest){
+    // A retest is a within-session repair check, not a second review. Grading it
+    // again would hand FSRS two reviews of the same verse on the same day and
+    // quietly corrupt its interval.
+    session.repaired=(session.repaired||0)+1;
+  } else {
+    applyGrade(v, lastJudge.g, lastJudge);
+    const qi=session.queue.indexOf(v);
+    if(qi>=0) session.queue.splice(qi,1);
+    session.done++;
+  }
+  phase="prompt"; predicted=null; lastJudge=null;
+  if(session.practice){ save(); return drawPracticeEnd(); }
   save(); updateDots(); today();
+}
+
+/* ============================================================
+   PRACTICE — drill anything, any time, schedule untouched
+   ============================================================
+   Refusing to let you look at a verse when you want to would be absurd. But
+   feeding those reps to FSRS would be worse: reviewing early, while
+   retrievability is still high, yields almost no stability and drags the
+   interval down. So practice scores you, shows the diff, runs the correction
+   loop — and records nothing. */
+function startPractice(v){
+  session={ queue:[v], done:0, total:1, retest:[], corrected:0,
+            refs:[], refDone:0, refTotal:0, practice:true };
+  cur=v; curIsRetest=false; phase="prompt"; predicted=null; lastJudge=null;
+  document.querySelectorAll(".view").forEach(x=>x.classList.remove("on"));
+  $("#v-today").classList.add("on");
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.v==="today"));
+  window.scrollTo(0,0);
+  drawCard();
+}
+function drawPracticeEnd(){
+  const v=cur;
+  $("#today-body").innerHTML=`
+    <div class="card">
+      <p class="eyebrow">Practice</p>
+      <div class="ref">${esc(v.ref)}</div>
+      <p class="sub">Nothing recorded. Your review schedule is exactly where it was —
+      early reps build very little, so they're kept out of the maths.</p>
+      <div class="row">
+        <button class="btn" id="pagain">Again</button>
+        <button class="btn ghost" id="pdone">Done</button>
+      </div>
+    </div>`;
+  $("#pagain").onclick=()=>startPractice(v);
+  $("#pdone").onclick=()=>go("lib");
 }
 
 /* ============================================================
@@ -1248,7 +1344,10 @@ function detail(id){
         <span style="color:var(--dim)">${modes}</span>
       </div>
       <div class="row">
+        <button class="btn" id="prac">Practise now</button>
         <button class="btn ghost" id="hear">Hear it</button>
+      </div>
+      <div class="row">
         <button class="btn ghost" id="lst">Recite to a person</button>
       </div>
       <div class="row">
@@ -1257,6 +1356,7 @@ function detail(id){
         <button class="tiny" id="back">Back</button>
       </div>
     </div>`;
+  $("#prac").onclick=()=>startPractice(v);
   $("#hear").onclick=()=>speak(v.text);
   $("#lst").onclick=()=>openListener(v);
   $("#back").onclick=libView;
@@ -1361,7 +1461,7 @@ function settingsView(){
     Turn them off entirely if you already know this material — scaffolding that helps a
     beginner makes an expert worse.</p>
     <hr>
-    <p class="sub">Build <b>1.3</b> · storage <b>${Store.mode()}</b>. Export a backup from the Verses tab
+    <p class="sub">Build <b>1.4</b> · storage <b>${Store.mode()}</b>. Export a backup from the Verses tab
     regularly — this is the only copy.</p>`;
   $("#settings-body").querySelectorAll("[data-r]").forEach(b=>b.onclick=async()=>{
     S.settings.retention=parseFloat(b.dataset.r); session=null; await save(); settingsView(); });
