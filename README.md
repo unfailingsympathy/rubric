@@ -1,4 +1,4 @@
-# Rubric
+# SimplyVerses
 
 Verbatim scripture memorisation, built for thirty-year retention rather than
 next month. Offline, no account, no server, no tracking. Everything stays on
@@ -44,6 +44,22 @@ hundred.
 
 Verses tab → Export. This is the only copy. Storage is IndexedDB, which
 survives normal use but not "clear site data".
+
+## Themes and fonts
+
+Method → Settings. Four themes (Paper, Parchment, Slate, Ember) and five reading
+faces. Two things worth knowing:
+
+- **Light usually reads better than dark.** The pupil constricts, depth of field
+  increases, text lands sharper. Dark mode's real wins are dim rooms and less
+  blue light before sleep — which is what **Ember** is for, since new verses go
+  in last thing at night.
+- **Fonts here are chosen for legibility, not memory.** The claim that
+  hard-to-read type improves retention was popular for a decade and has largely
+  failed to replicate; Sans Forgetica, built expressly as a memory font, showed
+  no benefit when independently tested. Pick what you read effortlessly, then
+  stop changing it — consistent visual form is itself a retrieval cue, and
+  *that* is well supported.
 
 ## Editing it
 

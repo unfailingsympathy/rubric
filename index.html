@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Rubric — scripture memory</title>
+<title>SimplyVerses — scripture memory</title>
 <meta name="theme-color" content="#171A21">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -11,6 +11,13 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+/* Themes.
+   Light generally reads better than dark — a constricted pupil gives greater
+   depth of field — so Paper is the daytime default. Ember exists for the
+   evening session: warm, blue-reduced, because blue-enriched light before
+   sleep suppresses melatonin and this app deliberately puts new material
+   last thing at night. Neither light theme uses pure white or pure black;
+   maximum contrast causes halation over long reading. */
 :root{
   --ground:#171A21; --raise:#1F2430; --raise2:#282F3D;
   --ink:#E8E3D9; --mute:#868C9A; --dim:#5C6373;
@@ -20,6 +27,25 @@
   --sans:'IBM Plex Sans',system-ui,sans-serif;
   --serif:'EB Garamond',Georgia,serif;
   --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --reading:var(--serif);
+}
+html[data-theme="paper"]{
+  --ground:#FBFAF7; --raise:#FFFFFF; --raise2:#F1EFE9;
+  --ink:#1F2328; --mute:#5E6572; --dim:#8C939F;
+  --rubric:#A8371F; --rubric-dim:#DFC3BB;
+  --gilt:#7E6212; --line:#E3DFD6;
+}
+html[data-theme="parchment"]{
+  --ground:#F6F1E4; --raise:#FCF8EE; --raise2:#EEE7D5;
+  --ink:#2A2620; --mute:#6A6254; --dim:#98907E;
+  --rubric:#9E3A1C; --rubric-dim:#D8BEAF;
+  --gilt:#755D10; --line:#E1D8C3;
+}
+html[data-theme="ember"]{
+  --ground:#1A1614; --raise:#241E1A; --raise2:#2F2721;
+  --ink:#EDE2D2; --mute:#9A8C7C; --dim:#6E6255;
+  --rubric:#D06246; --rubric-dim:#7A3A28;
+  --gilt:#C9A227; --line:#362D26;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
@@ -60,7 +86,7 @@ nav button.on{color:var(--ink);border-top-color:var(--rubric)}
 nav button:focus-visible{outline:2px solid var(--rubric);outline-offset:-2px}
 
 /* ---- type ---- */
-h2{font-family:var(--serif);font-weight:500;font-size:calc(26px*var(--t));margin:26px 0 4px;letter-spacing:.01em}
+h2{font-family:var(--reading);font-weight:500;font-size:calc(26px*var(--t));margin:26px 0 4px;letter-spacing:.01em}
 .eyebrow{font-size:calc(11px*var(--t));letter-spacing:.16em;text-transform:uppercase;color:var(--mute);margin:0 0 14px}
 .sub{color:var(--mute);font-size:calc(14px*var(--t));margin:0 0 18px}
 p{margin:0 0 12px}
@@ -78,7 +104,7 @@ a{color:var(--rubric)}
 .ref .lvl{color:var(--dim);float:right;letter-spacing:.1em;font-weight:400}
 
 /* scripture: one chunk per line, fixed breaks — never reflowed to viewport */
-.script{font-family:var(--serif);font-size:calc(21px*var(--t));line-height:1.75;letter-spacing:.005em}
+.script{font-family:var(--reading);font-size:calc(21px*var(--t));line-height:1.75;letter-spacing:.005em}
 .script .ln{display:block;margin-bottom:2px}
 .script .ln.addr{font-family:var(--sans);font-size:calc(12px*var(--t));letter-spacing:.19em;
   text-transform:uppercase;color:var(--rubric);font-weight:600;margin-bottom:11px}
@@ -93,7 +119,7 @@ a{color:var(--rubric)}
 
 textarea,input[type=text]{
   width:100%;background:var(--ground);border:1px solid var(--line);border-radius:3px;
-  color:var(--ink);font-family:var(--serif);font-size:calc(19px*var(--t));line-height:1.6;
+  color:var(--ink);font-family:var(--reading);font-size:calc(19px*var(--t));line-height:1.6;
   padding:13px;resize:vertical;margin:0
 }
 textarea:focus,input:focus{outline:none;border-color:var(--rubric)}
@@ -114,13 +140,13 @@ button.btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
   padding:6px 11px;font-size:calc(12px*var(--t));font-family:var(--sans);cursor:pointer}
 
 /* ---- diff ---- */
-.diff{font-family:var(--serif);font-size:calc(20px*var(--t));line-height:1.85;margin:6px 0 0}
+.diff{font-family:var(--reading);font-size:calc(20px*var(--t));line-height:1.85;margin:6px 0 0}
 .diff .ok{color:var(--ink)}
 .diff .bad{color:var(--rubric);text-decoration:line-through;text-decoration-thickness:1px;opacity:.75}
 .diff .fix{color:var(--rubric);font-weight:600;border-bottom:2px solid var(--rubric)}
 .diff .missing{color:var(--rubric);font-weight:600;border-bottom:2px solid var(--rubric)}
 
-.verdict{font-family:var(--serif);font-size:calc(23px*var(--t));margin:0 0 10px}
+.verdict{font-family:var(--reading);font-size:calc(23px*var(--t));margin:0 0 10px}
 .verdict.pass{color:var(--ink)} .verdict.slip{color:var(--gilt)} .verdict.fail{color:var(--rubric)}
 
 .note{
@@ -135,7 +161,7 @@ button.btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .bar i{display:block;height:100%;background:var(--rubric);transition:width .4s}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin:16px 0}
 .stat{background:var(--raise);border:1px solid var(--line);border-radius:3px;padding:14px}
-.stat .n{font-family:var(--serif);font-size:calc(30px*var(--t));line-height:1.1}
+.stat .n{font-family:var(--reading);font-size:calc(30px*var(--t));line-height:1.1}
 .stat .l{font-size:calc(10px*var(--t));letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin-top:5px}
 .stat.gilt .n{color:var(--gilt)}
 
@@ -143,7 +169,7 @@ button.btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
   display:flex;align-items:baseline;gap:11px;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer
 }
 .vrow .vr{font-size:calc(12px*var(--t));letter-spacing:.13em;text-transform:uppercase;color:var(--rubric);font-weight:600;flex-shrink:0}
-.vrow .vt{font-family:var(--serif);color:var(--mute);font-size:calc(15px*var(--t));overflow:hidden;
+.vrow .vt{font-family:var(--reading);color:var(--mute);font-size:calc(15px*var(--t));overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap;flex:1}
 .vrow .vd{font-family:var(--mono);font-size:calc(11px*var(--t));color:var(--dim);flex-shrink:0}
 .vrow.v-vault .vr{color:var(--gilt)}
@@ -179,7 +205,7 @@ hr{border:0;border-top:1px solid var(--line);margin:26px 0}
 
 <header>
   <div class="head">
-    <div class="mark">Rub<b>ric</b></div>
+    <div class="mark">Simply<b>Verses</b></div>
     <div class="dots" id="dots"></div>
   </div>
 </header>
@@ -355,7 +381,7 @@ const Store = (()=>{
 
   function idbOpen(){
     return new Promise((res,rej)=>{
-      const r = indexedDB.open("rubric",1);
+      const r = indexedDB.open("rubric",1);   // do not rename: existing data lives here
       r.onupgradeneeded = ()=> r.result.createObjectStore("kv");
       r.onsuccess = ()=> res(r.result);
       r.onerror = ()=> rej(r.error);
@@ -602,7 +628,7 @@ function clozeMask(v, fraction){
    ============================================================ */
 const uid=()=>Math.random().toString(36).slice(2,10);
 let S={ verses:[], log:{}, cal:[], settings:{
-  retention:0.90, dailyCap:20, newCap:2, teaching:true, lastOral:0, textSize:1, refFirst:true
+  retention:0.90, dailyCap:20, newCap:2, teaching:true, lastOral:0, textSize:1, refFirst:true, theme:"auto", font:"garamond"
 }, seen:{} };
 
 const todayKey=()=>new Date().toISOString().slice(0,10);
@@ -822,6 +848,61 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",
 function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("on");
   clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("on"),2400); }
 async function save(){ await Store.set("state",S); }
+/* Reading faces.
+   These are picked for legibility and comfort, NOT for any memory effect.
+   The 2011 disfluency result — that hard-to-read type aids retention — has
+   largely failed to replicate, and Sans Forgetica, built expressly as a
+   "memory font", showed no benefit in independent testing. What genuinely
+   helps is reading something without effort, and using the same face every
+   time so the visual form becomes part of the retrieval cue. */
+const FONTS={
+  garamond:{label:"Garamond", css:"'EB Garamond',Georgia,serif", g:null,
+    note:"A Renaissance old-style, and what most printed Bibles are set in. Generous at large sizes."},
+  literata:{label:"Literata", css:"'Literata',Georgia,serif", g:"Literata:opsz,wght@7..72,400;7..72,500;7..72,600",
+    note:"Drawn for long-form reading on screens. Sturdier than Garamond at small sizes."},
+  atkinson:{label:"Atkinson", css:"'Atkinson Hyperlegible',system-ui,sans-serif", g:"Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400",
+    note:"From the Braille Institute, built so similar characters stay distinct — I, l and 1 never blur. The strongest choice for low vision."},
+  lexend:{label:"Lexend", css:"'Lexend',system-ui,sans-serif", g:"Lexend:wght@400;500;600",
+    note:"Designed to raise reading speed by widening letterspacing. Some published work behind it, though the evidence is thin."},
+  plex:{label:"Plex Sans", css:"'IBM Plex Sans',system-ui,sans-serif", g:null,
+    note:"A plain humanist sans. Nothing decorative to get between you and the words."}
+};
+function loadFont(k){
+  const f=FONTS[k]; if(!f||!f.g||document.getElementById("fnt-"+k)) return;
+  const l=document.createElement("link");
+  l.id="fnt-"+k; l.rel="stylesheet";
+  l.href="https://fonts.googleapis.com/css2?family="+f.g+"&display=swap";
+  document.head.appendChild(l);
+}
+function applyFont(){
+  const k=S.settings.font||"garamond";
+  loadFont(k);
+  document.documentElement.style.setProperty("--reading",(FONTS[k]||FONTS.garamond).css);
+}
+const THEMES={
+  auto:     {label:"Auto",      note:"Follows your device — Paper by day, Slate at night."},
+  paper:    {label:"Paper",     note:"Off-white, not pure white. Best reading performance in daylight."},
+  parchment:{label:"Parchment", note:"Warmer and lower in contrast. Easier on tired eyes."},
+  slate:    {label:"Slate",     note:"Cool dark. Comfortable in a dim room."},
+  ember:    {label:"Ember",     note:"Warm dark with the blue pulled out — for the session before bed."}
+};
+function resolveTheme(){
+  const t=S.settings.theme||"auto";
+  if(t!=="auto") return t;
+  return (window.matchMedia && matchMedia("(prefers-color-scheme: light)").matches) ? "paper" : "slate";
+}
+function applyTheme(){
+  const r=resolveTheme();
+  document.documentElement.setAttribute("data-theme", r);
+  const bg=getComputedStyle(document.documentElement).getPropertyValue("--ground").trim();
+  const m=document.querySelector('meta[name="theme-color"]');
+  if(m&&bg) m.setAttribute("content",bg);
+}
+if(window.matchMedia){
+  try{ matchMedia("(prefers-color-scheme: light)").addEventListener("change",()=>{
+    if((S.settings.theme||"auto")==="auto") applyTheme(); }); }catch(e){}
+}
+
 function applyTextSize(){
   document.documentElement.style.setProperty("--t", S.settings.textSize||1);
 }
@@ -1518,7 +1599,7 @@ function libView(){
   $("#exp").onclick=()=>{
     const blob=new Blob([JSON.stringify(S,null,2)],{type:"application/json"});
     const a=document.createElement("a");
-    a.href=URL.createObjectURL(blob); a.download=`rubric-${todayKey()}.json`; a.click();
+    a.href=URL.createObjectURL(blob); a.download=`simplyverses-${todayKey()}.json`; a.click();
   };
   $("#imp").onclick=()=>{
     const i=document.createElement("input"); i.type="file"; i.accept="application/json";
@@ -1658,6 +1739,33 @@ function settingsView(){
     <p class="sub" style="margin-top:10px">Ninety is the right answer. Ninety-five roughly
     doubles your reviews; ninety-nine multiplies them by ten and is unsustainable past
     about fifty verses. Use the per-verse override for a small core instead.</p>
+    <label>Theme</label>
+    <div class="row">
+      ${Object.keys(THEMES).map(k=>`<button class="tiny" data-th="${k}"
+        style="${k===(s.theme||"auto")?"border-color:var(--rubric);color:var(--ink)":""}">${THEMES[k].label}</button>`).join("")}
+    </div>
+    <p class="sub" style="margin-top:10px">${esc(THEMES[s.theme||"auto"].note)}</p>
+    <div class="note">Light usually reads better than dark — the pupil constricts, depth
+    of field increases, text lands sharper. Dark earns its place in a dim room and
+    before sleep, which is why <b>Ember</b> exists: new verses go in last thing at
+    night, and blue light at that hour suppresses melatonin.</div>
+
+    <label>Reading font</label>
+    <div class="row">
+      ${Object.keys(FONTS).map(k=>`<button class="tiny" data-fnt="${k}"
+        style="${k===(s.font||"garamond")?"border-color:var(--rubric);color:var(--ink)":""}">${FONTS[k].label}</button>`).join("")}
+    </div>
+    <p class="sub" style="margin-top:10px">${esc(FONTS[s.font||"garamond"].note)}</p>
+    <div class="card" style="margin:12px 0 0;padding:14px">
+      <div class="script"><span class="ln">And we know that all things work together</span></div>
+    </div>
+    <div class="note">Chosen for legibility, not for any memory effect. The claim that
+    hard-to-read type aids recall was popular for a decade and has largely failed to
+    replicate — Sans Forgetica, built expressly as a memory font, showed no benefit
+    when others tested it. Pick whichever you can read without effort, then <b>stop
+    changing it</b>: seeing a verse in the same form every time is itself a retrieval
+    cue, and that part is well supported.</div>
+
     <label>Text size</label>
     <div class="row">
       ${[[0.85,"Small"],[1,"Default"],[1.2,"Large"],[1.45,"Larger"]].map(([n,l])=>
@@ -1680,10 +1788,14 @@ function settingsView(){
     Turn them off entirely if you already know this material — scaffolding that helps a
     beginner makes an expert worse.</p>
     <hr>
-    <p class="sub">Build <b>1.6</b> · storage <b>${Store.mode()}</b>. Export a backup from the Verses tab
+    <p class="sub">Build <b>2.0</b> · storage <b>${Store.mode()}</b>. Export a backup from the Verses tab
     regularly — this is the only copy.</p>`;
   $("#settings-body").querySelectorAll("[data-r]").forEach(b=>b.onclick=async()=>{
     S.settings.retention=parseFloat(b.dataset.r); session=null; await save(); settingsView(); });
+  $("#settings-body").querySelectorAll("[data-th]").forEach(b=>b.onclick=async()=>{
+    S.settings.theme=b.dataset.th; applyTheme(); await save(); settingsView(); });
+  $("#settings-body").querySelectorAll("[data-fnt]").forEach(b=>b.onclick=async()=>{
+    S.settings.font=b.dataset.fnt; applyFont(); await save(); settingsView(); });
   $("#settings-body").querySelectorAll("[data-t]").forEach(b=>b.onclick=async()=>{
     S.settings.textSize=parseFloat(b.dataset.t); applyTextSize(); await save(); settingsView(); });
   $("#rf").onclick=async()=>{ s.refFirst=!(s.refFirst!==false); await save(); settingsView(); };
@@ -1712,10 +1824,10 @@ document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>go(b.dataset.v)
 (async function boot(){
   await Store.init();
   const saved=await Store.get("state");
-  applyTextSize();
-  if(saved){ S=Object.assign(S,saved); S.settings=Object.assign({retention:0.90,dailyCap:20,newCap:2,teaching:true,lastOral:0,textSize:1,refFirst:true},saved.settings||{}); }
+  applyTheme(); applyFont(); applyTextSize();
+  if(saved){ S=Object.assign(S,saved); S.settings=Object.assign({retention:0.90,dailyCap:20,newCap:2,teaching:true,lastOral:0,textSize:1,refFirst:true,theme:"auto",font:"garamond"},saved.settings||{}); }
   S.verses.forEach(ensureRef);
-  applyTextSize();
+  applyTheme(); applyFont(); applyTextSize();
   today();
   if("serviceWorker" in navigator){
     try{ navigator.serviceWorker.register("sw.js"); }catch(e){}
