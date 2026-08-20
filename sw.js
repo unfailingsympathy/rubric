@@ -1,5 +1,5 @@
 /* SimplyVerses — offline shell. Bump CACHE to force an update. */
-const CACHE = "simplyverses-v2";
+const CACHE = "simplyverses-v3";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {
